@@ -1,12 +1,23 @@
-# React + Vite
+## Interactive Data Structures & Algorithms Visualizer
+A sleek, modern web application for visualizing and interacting with fundamental data structures like Binary Search Trees, Linked Lists, and Graphs. This project is a hands-on learning tool built with React that provides a dynamic and intuitive way to understand how data structures work.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Users can insert, delete, search, and traverse nodes, with all operations visualized in real-time through smooth animations. The interface is designed to be clean, modern, and user-friendly, featuring an animated grid background and a polished component-based UI.
 
-Currently, two official plugins are available:
+## ✨ Key Features
+Three Core Structures: Visualize and manipulate:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Binary Search Trees: Insert, delete, search, and perform In-order, Pre-order, and Post-order traversals.
 
-## Expanding the ESLint configuration
+Singly Linked Lists: Append, prepend, delete, and search for nodes.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Undirected Graphs: Add nodes and edges, and visualize DFS & BFS traversals from any starting node.
+
+Interactive Controls: Full control to add/remove elements, search for values, and initiate complex algorithms.
+
+Real-time Visualization: All operations are animated step-by-step to clearly illustrate the underlying processes.
+
+Modern UI/UX: A responsive and visually appealing interface built with pure CSS, featuring a unique animated grid background and glassmorphism-style panels.
+
+Analytics & Insights: A dedicated panel displays key metrics like tree height, node count, graph density, and operational status.
+
+Quick Reference Guide: An integrated panel provides time complexities and common use cases for each data structure, acting as a handy cheat sheet.
