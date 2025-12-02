@@ -1,5 +1,7 @@
-````markdown
 # DSA Visualization
+
+<img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/2d124ed7-d447-4d11-8be5-8f09972a1bea" />
+<img width="1919" height="930" alt="image" src="https://github.com/user-attachments/assets/f583acce-7aba-4c21-a735-2aaa0189ce56" />
 
 An interactive, modern web application for visualizing fundamental data structures such as Binary Search Trees, Linked Lists, and Graphs. Built with React and styled using pure CSS, this tool brings learning to life with real-time, animated visualizations.
 
