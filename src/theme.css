@@ -1,0 +1,125 @@
+:root {
+  /* ===== DARK THEME (Default) ===== */
+  --bg-primary: #09090b;
+  --bg-secondary: #111114;
+  --bg-elevated: #18181b;
+  --bg-card: #1c1c21;
+  --bg-input: #1e1e24;
+
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #63636e;
+  --text-placeholder: #4a4a55;
+  --text-inverse: #09090b;
+
+  /* Accent Colors - Vibrant palette */
+  --accent-primary: #8b5cf6;
+  --accent-primary-hover: #7c3aed;
+  --accent-secondary: #ec4899;
+  --accent-tertiary: #06b6d4;
+  --accent-warm: #f97316;
+  --accent-lime: #84cc16;
+  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f97316 100%);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+  --accent-ring: rgba(139, 92, 246, 0.25);
+
+  /* Status Colors */
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.12);
+  --success-border: rgba(34, 197, 94, 0.25);
+  --warning: #eab308;
+  --warning-bg: rgba(234, 179, 8, 0.12);
+  --warning-border: rgba(234, 179, 8, 0.25);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.12);
+  --error-border: rgba(239, 68, 68, 0.25);
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.12);
+  --info-border: rgba(59, 130, 246, 0.25);
+
+  /* Glass */
+  --glass-bg: rgba(17, 17, 20, 0.75);
+  --glass-bg-subtle: rgba(24, 24, 27, 0.6);
+  --glass-bg-inner: rgba(28, 28, 33, 0.5);
+  --glass-bg-solid: rgba(17, 17, 20, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-hover: rgba(255, 255, 255, 0.12);
+  --glass-border-subtle: rgba(255, 255, 255, 0.04);
+
+  /* Background blobs */
+  --blob-1: rgba(139, 92, 246, 0.06);
+  --blob-2: rgba(236, 72, 153, 0.04);
+  --blob-3: rgba(6, 182, 212, 0.04);
+  --dot-color: rgba(255, 255, 255, 0.03);
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 16px 60px rgba(0, 0, 0, 0.5);
+  --shadow-glow-purple: 0 0 30px rgba(139, 92, 246, 0.25);
+  --shadow-glow-pink: 0 0 30px rgba(236, 72, 153, 0.25);
+  --shadow-glow-cyan: 0 0 30px rgba(6, 182, 212, 0.25);
+  --shadow-glow-green: 0 0 30px rgba(34, 197, 94, 0.25);
+  --shadow-glow-red: 0 0 20px rgba(239, 68, 68, 0.25);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.08);
+
+  /* Node colors */
+  --node-bg: rgba(139, 92, 246, 0.08);
+  --node-border: rgba(139, 92, 246, 0.35);
+  --node-active: rgba(236, 72, 153, 0.2);
+  --node-found: rgba(34, 197, 94, 0.2);
+  --node-visited: rgba(6, 182, 212, 0.2);
+  --node-comparing: rgba(234, 179, 8, 0.2);
+  --node-text: #fafafa;
+
+  /* Edge colors */
+  --edge-color: rgba(139, 92, 246, 0.2);
+  --edge-active: rgba(236, 72, 153, 0.6);
+  --edge-visited: rgba(6, 182, 212, 0.6);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8f9fc;
+  --bg-secondary: #f0f1f5;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f4f4f8;
+
+  --text-primary: #0f0f12;
+  --text-secondary: #5a5a6e;
+  --text-muted: #8e8e9e;
+  --text-placeholder: #b0b0be;
+  --text-inverse: #fafafa;
+
+  --accent-ring: rgba(139, 92, 246, 0.2);
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.5);
+  --glass-bg-inner: rgba(248, 249, 252, 0.6);
+  --glass-bg-solid: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-border-hover: rgba(0, 0, 0, 0.12);
+  --glass-border-subtle: rgba(0, 0, 0, 0.04);
+
+  --blob-1: rgba(139, 92, 246, 0.05);
+  --blob-2: rgba(236, 72, 153, 0.04);
+  --blob-3: rgba(6, 182, 212, 0.04);
+  --dot-color: rgba(0, 0, 0, 0.04);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 16px 60px rgba(0, 0, 0, 0.12);
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.1);
+
+  --node-bg: rgba(139, 92, 246, 0.06);
+  --node-border: rgba(139, 92, 246, 0.4);
+  --node-text: #0f0f12;
+  --edge-color: rgba(139, 92, 246, 0.25);
+}
