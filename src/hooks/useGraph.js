@@ -15,111 +15,220 @@ export default function useGraph() {
     setCurrentMessage('');
   }, []);
 
-  const addNode = useCallback((label) => {
-    const id = `g_${nodeCounter.current++}`;
-    const angle = (nodeCounter.current * 2.4) + Math.random() * 0.5;
-    const r = 90 + Math.random() * 110;
-    const x = 350 + Math.cos(angle) * r;
-    const y = 210 + Math.sin(angle) * r;
+  // Improved positioning: place nodes in a circle or force-directed pattern
+  const getNodePosition = useCallback((existingNodes) => {
+    const count = existingNodes.length;
+    const cx = 350;
+    const cy = 210;
 
-    adj.current.set(id, new Set());
-    setNodes(prev => [...prev, { id, label: label || `N${nodeCounter.current - 1}`, x, y }]);
-    return { ok: true, msg: `Added node "${label || `N${nodeCounter.current - 1}`}"`, id };
+    if (count === 0) return { x: cx, y: cy };
+
+    // Place in expanding circles
+    const ring = Math.floor(count / 6);
+    const posInRing = count % 6;
+    const baseRadius = 100 + ring * 80;
+    const angleOffset = ring * 0.5; // Rotate each ring
+    const angle = (posInRing / 6) * Math.PI * 2 + angleOffset;
+
+    let x = cx + Math.cos(angle) * baseRadius;
+    let y = cy + Math.sin(angle) * baseRadius;
+
+    // Avoid overlap with existing nodes
+    const minDist = 65;
+    let attempts = 0;
+    while (attempts < 20) {
+      let tooClose = false;
+      for (const n of existingNodes) {
+        const dx = n.x - x;
+        const dy = n.y - y;
+        if (Math.sqrt(dx * dx + dy * dy) < minDist) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (!tooClose) break;
+      // Nudge position
+      x += (Math.random() - 0.5) * 40;
+      y += (Math.random() - 0.5) * 40;
+      attempts++;
+    }
+
+    // Clamp to viewBox
+    x = Math.max(40, Math.min(660, x));
+    y = Math.max(40, Math.min(400, y));
+
+    return { x, y };
   }, []);
 
-  const addEdge = useCallback((fromId, toId, weight = 1) => {
-    if (fromId === toId) return { ok: false, msg: 'Self-loops not allowed' };
-    if (!adj.current.has(fromId) || !adj.current.has(toId))
+  const addNode = useCallback((label) => {
+    const trimmed = (label || '').trim();
+    if (!trimmed) {
+      return { ok: false, msg: 'Node label cannot be empty' };
+    }
+
+    // Check for duplicate labels
+    const existing = nodes.find(n => n.label.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      return { ok: false, msg: `Node "${trimmed}" already exists` };
+    }
+
+    const id = `g_${nodeCounter.current++}`;
+    const { x, y } = getNodePosition(nodes);
+
+    adj.current.set(id, new Set());
+    const newNode = { id, label: trimmed, x, y };
+    setNodes(prev => [...prev, newNode]);
+
+    return { ok: true, msg: `Added node "${trimmed}"`, id };
+  }, [nodes, getNodePosition]);
+
+  const addEdge = useCallback((fromId, toId) => {
+    if (!fromId || !toId) {
+      return { ok: false, msg: 'Select both nodes' };
+    }
+    if (fromId === toId) {
+      return { ok: false, msg: 'Self-loops are not allowed' };
+    }
+    if (!adj.current.has(fromId) || !adj.current.has(toId)) {
       return { ok: false, msg: 'One or both nodes not found' };
-    if (adj.current.get(fromId).has(toId))
-      return { ok: false, msg: 'Edge already exists' };
+    }
+    if (adj.current.get(fromId).has(toId)) {
+      return { ok: false, msg: 'Edge already exists between these nodes' };
+    }
 
     adj.current.get(fromId).add(toId);
     adj.current.get(toId).add(fromId);
 
     const edgeId = `${fromId}__${toId}`;
-    setEdges(prev => [...prev, { id: edgeId, from: fromId, to: toId, weight }]);
-    return { ok: true, msg: `Edge added` };
-  }, []);
+    setEdges(prev => [...prev, { id: edgeId, from: fromId, to: toId }]);
+
+    const fromLabel = nodes.find(n => n.id === fromId)?.label || fromId;
+    const toLabel = nodes.find(n => n.id === toId)?.label || toId;
+
+    return { ok: true, msg: `Connected ${fromLabel} ↔ ${toLabel}` };
+  }, [nodes]);
 
   const removeNode = useCallback((id) => {
     if (!adj.current.has(id)) return { ok: false, msg: 'Node not found' };
+
+    const label = nodes.find(n => n.id === id)?.label || id;
     const neighbors = adj.current.get(id);
     neighbors.forEach(nid => adj.current.get(nid)?.delete(id));
     adj.current.delete(id);
+
     setNodes(prev => prev.filter(n => n.id !== id));
     setEdges(prev => prev.filter(e => e.from !== id && e.to !== id));
-    return { ok: true, msg: `Removed node` };
-  }, []);
+
+    return { ok: true, msg: `Removed node "${label}" and its edges` };
+  }, [nodes]);
 
   const removeEdge = useCallback((fromId, toId) => {
-    if (!adj.current.has(fromId) || !adj.current.has(toId)) return { ok: false, msg: 'Node not found' };
+    if (!adj.current.has(fromId) || !adj.current.has(toId)) {
+      return { ok: false, msg: 'Node not found' };
+    }
+    if (!adj.current.get(fromId).has(toId)) {
+      return { ok: false, msg: 'Edge does not exist' };
+    }
+
     adj.current.get(fromId).delete(toId);
     adj.current.get(toId).delete(fromId);
     setEdges(prev => prev.filter(e =>
-      !(e.from === fromId && e.to === toId) && !(e.from === toId && e.to === fromId)
+      !(e.from === fromId && e.to === toId) &&
+      !(e.from === toId && e.to === fromId)
     ));
     return { ok: true, msg: 'Edge removed' };
   }, []);
 
+  const getNodeLabel = useCallback((id) => {
+    return nodes.find(n => n.id === id)?.label || id;
+  }, [nodes]);
+
   const bfs = useCallback((startId) => {
     if (!adj.current.has(startId)) return { steps: [], result: [] };
+
     const visited = new Set([startId]);
     const queue = [startId];
     const steps = [];
     const result = [];
 
-    steps.push({ nodeId: startId, action: 'start', msg: 'Starting BFS' });
+    const startLabel = getNodeLabel(startId);
+    steps.push({ nodeId: startId, action: 'start', msg: `Starting BFS from "${startLabel}"` });
 
     while (queue.length > 0) {
       const id = queue.shift();
-      steps.push({ nodeId: id, action: 'visit', msg: `Visiting ${id}` });
+      const label = getNodeLabel(id);
+      steps.push({ nodeId: id, action: 'visit', msg: `Dequeue and visit "${label}"` });
       result.push(id);
 
       const neighbors = Array.from(adj.current.get(id) || []).sort();
       for (const nb of neighbors) {
+        const nbLabel = getNodeLabel(nb);
         const eid = `${id}__${nb}`;
         const eidR = `${nb}__${id}`;
+
         if (!visited.has(nb)) {
           visited.add(nb);
-          steps.push({ edgeId: eid, edgeIdR: eidR, action: 'edge-visit', msg: `Exploring edge to ${nb}` });
-          steps.push({ nodeId: nb, action: 'discover', msg: `Discovered ${nb}` });
+          steps.push({ edgeId: eid, edgeIdR: eidR, action: 'edge-visit', msg: `Exploring edge "${label}" → "${nbLabel}"` });
+          steps.push({ nodeId: nb, action: 'discover', msg: `Discovered "${nbLabel}" — adding to queue` });
           queue.push(nb);
         }
       }
     }
+
+    const unvisited = nodes.filter(n => !visited.has(n.id));
+    if (unvisited.length > 0) {
+      steps.push({
+        nodeId: null, action: 'info',
+        msg: `${unvisited.length} node(s) unreachable from "${startLabel}"`
+      });
+    }
+
     return { steps, result };
-  }, []);
+  }, [nodes, getNodeLabel]);
 
   const dfs = useCallback((startId) => {
     if (!adj.current.has(startId)) return { steps: [], result: [] };
+
     const visited = new Set();
     const steps = [];
     const result = [];
 
-    steps.push({ nodeId: startId, action: 'start', msg: 'Starting DFS' });
+    const startLabel = getNodeLabel(startId);
+    steps.push({ nodeId: startId, action: 'start', msg: `Starting DFS from "${startLabel}"` });
 
-    function visit(id) {
+    function visit(id, depth) {
       if (visited.has(id)) return;
       visited.add(id);
-      steps.push({ nodeId: id, action: 'visit', msg: `Visiting ${id}` });
+
+      const label = getNodeLabel(id);
+      steps.push({ nodeId: id, action: 'visit', msg: `${'  '.repeat(depth)}Visit "${label}" (depth ${depth})` });
       result.push(id);
 
       const neighbors = Array.from(adj.current.get(id) || []).sort();
       for (const nb of neighbors) {
         if (!visited.has(nb)) {
+          const nbLabel = getNodeLabel(nb);
           const eid = `${id}__${nb}`;
           const eidR = `${nb}__${id}`;
-          steps.push({ edgeId: eid, edgeIdR: eidR, action: 'edge-visit', msg: `Traversing to ${nb}` });
-          visit(nb);
-          steps.push({ nodeId: id, action: 'backtrack', msg: `Backtracking to ${id}` });
+          steps.push({ edgeId: eid, edgeIdR: eidR, action: 'edge-visit', msg: `${'  '.repeat(depth)}Traversing edge → "${nbLabel}"` });
+          visit(nb, depth + 1);
+          steps.push({ nodeId: id, action: 'backtrack', msg: `${'  '.repeat(depth)}Backtrack to "${label}"` });
         }
       }
     }
 
-    visit(startId);
+    visit(startId, 0);
+
+    const unvisited = nodes.filter(n => !visited.has(n.id));
+    if (unvisited.length > 0) {
+      steps.push({
+        nodeId: null, action: 'info',
+        msg: `${unvisited.length} node(s) unreachable from "${startLabel}"`
+      });
+    }
+
     return { steps, result };
-  }, []);
+  }, [nodes, getNodeLabel]);
 
   const clear = useCallback(() => {
     adj.current = new Map();
@@ -135,6 +244,7 @@ export default function useGraph() {
     const maxE = nc > 1 ? (nc * (nc - 1)) / 2 : 0;
     const density = maxE > 0 ? +(ec / maxE).toFixed(3) : 0;
 
+    // Count connected components
     let components = 0;
     const seen = new Set();
     for (const [id] of adj.current) {
@@ -145,18 +255,34 @@ export default function useGraph() {
           const curr = stack.pop();
           if (seen.has(curr)) continue;
           seen.add(curr);
-          for (const nb of adj.current.get(curr)) {
+          for (const nb of adj.current.get(curr) || []) {
             if (!seen.has(nb)) stack.push(nb);
           }
         }
       }
     }
 
-    return { nodeCount: nc, edgeCount: ec, density, components, isEmpty: nc === 0 };
+    // Calculate average degree
+    let totalDegree = 0;
+    for (const [, neighbors] of adj.current) {
+      totalDegree += neighbors.size;
+    }
+    const avgDegree = nc > 0 ? +(totalDegree / nc).toFixed(1) : 0;
+
+    return {
+      nodeCount: nc,
+      edgeCount: ec,
+      density,
+      components,
+      avgDegree,
+      isEmpty: nc === 0,
+    };
   }, [edges]);
 
   const moveNode = useCallback((id, x, y) => {
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, x, y } : n));
+    setNodes(prev => prev.map(n =>
+      n.id === id ? { ...n, x: Math.max(30, Math.min(670, x)), y: Math.max(30, Math.min(410, y)) } : n
+    ));
   }, []);
 
   return {
