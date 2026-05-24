@@ -1,0 +1,130 @@
+/* theme.css — extends index.css variables with component-level tokens */
+:root {
+  /* ── Component backgrounds ── */
+  --bg-input:        #131315;
+  --bg-input-focus:  #1a1a1e;
+
+  /* ── Accent system (used by OperationButton variants) ── */
+  --accent-1:        #6366f1;
+  --accent-2:        #8b5cf6;
+  --accent-cyan:     #22d3ee;
+  --accent-teal:     #2dd4bf;
+  --accent-emerald:  #34d399;
+  --accent-amber:    #fbbf24;
+  --accent-orange:   #fb923c;
+  --accent-rose:     #f87171;
+
+  /* ── Gradient shorthands ── */
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --gradient-success: linear-gradient(135deg, #34d399 0%, #2dd4bf 100%);
+  --gradient-warm:    linear-gradient(135deg, #f87171 0%, #fb923c 100%);
+  --gradient-cool:    linear-gradient(135deg, #22d3ee 0%, #6366f1 100%);
+  --gradient-card:    var(--bg-surface);
+
+  /* ── Node / edge colors ── */
+  --node-bg:     rgba(99, 102, 241, 0.07);
+  --node-border: rgba(99, 102, 241, 0.3);
+  --node-text:   #e8e8ec;
+  --edge-color:  rgba(99, 102, 241, 0.2);
+  --edge-visited: rgba(34, 211, 238, 0.65);
+  --edge-default: rgba(99, 102, 241, 0.2);
+
+  /* ── Brand shorthand ── */
+  --brand:    #6366f1;
+  --brand-8:  rgba(99, 102, 241, 0.08);
+  --brand-12: rgba(99, 102, 241, 0.18);
+  --g-brand:  linear-gradient(135deg, #6366f1, #8b5cf6);
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 1px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 2px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,0.6);
+  --shadow-xl: 0 8px 40px rgba(0,0,0,0.65);
+
+  /* ── Text aliases ── */
+  --text-dim:       #3a3a48;
+  --text-muted:     #5a5a6a;
+  --text-secondary: #9090a0;
+  --text-primary:   #e8e8ec;
+  --text-inverse:   #0a0a0b;
+
+  /* ── Glass surface aliases ── */
+  --glass-bg:              rgba(22, 22, 24, 0.9);
+  --glass-bg-subtle:       rgba(28, 28, 31, 0.75);
+  --glass-bg-solid:        rgba(22, 22, 24, 0.98);
+  --glass-border:          rgba(255,255,255,0.055);
+  --glass-border-hover:    rgba(255,255,255,0.1);
+  --glass-border-subtle:   rgba(255,255,255,0.03);
+
+  /* ── Radius ── */
+  --radius-sm:   5px;
+  --radius-md:   8px;
+  --radius-lg:   11px;
+  --radius-full: 9999px;
+  --r-sm:        5px;
+  --r-md:        8px;
+  --r-lg:        11px;
+
+  /* ── Component bg aliases ── */
+  --bg-secondary:  #161618;
+  --bg-tertiary:   #1c1c1f;
+  --bg-elevated:   #222226;
+
+  /* ── Font aliases ── */
+  --font-sans: 'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* ── Short token aliases ── */
+  --b-1: rgba(255,255,255,0.055);
+  --bg-2: #161618;
+  --bg-3: #1c1c1f;
+  --bg-4: #222226;
+  --t-1: #e8e8ec;
+  --t-2: #9090a0;
+  --t-3: #9090a0;
+  --t-4: #5a5a6a;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+[data-theme="light"] {
+  --bg-input:       #f4f4f7;
+  --bg-input-focus: #ffffff;
+
+  --node-bg:     rgba(99,102,241,0.06);
+  --node-border: rgba(99,102,241,0.35);
+  --node-text:   #111116;
+  --edge-color:  rgba(99,102,241,0.22);
+  --edge-default: rgba(99,102,241,0.22);
+
+  --glass-bg:            rgba(255,255,255,0.8);
+  --glass-bg-subtle:     rgba(248,248,250,0.7);
+  --glass-bg-solid:      rgba(255,255,255,0.98);
+  --glass-border:        rgba(0,0,0,0.07);
+  --glass-border-hover:  rgba(0,0,0,0.13);
+  --glass-border-subtle: rgba(0,0,0,0.04);
+
+  --text-dim:       #c0c0cc;
+  --text-muted:     #8a8a9a;
+  --text-secondary: #4a4a5a;
+  --text-primary:   #111116;
+
+  --bg-secondary:  #ffffff;
+  --bg-tertiary:   #f8f8fa;
+  --bg-elevated:   #f0f0f3;
+
+  --shadow-xs: 0 1px 1px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,0.1);
+  --shadow-xl: 0 8px 40px rgba(0,0,0,0.12);
+
+  --b-1: rgba(0,0,0,0.07);
+  --bg-2: #ffffff;
+  --bg-3: #f8f8fa;
+  --bg-4: #f0f0f3;
+  --t-1: #111116;
+  --t-2: #4a4a5a;
+  --t-3: #4a4a5a;
+  --t-4: #8a8a9a;
+}
