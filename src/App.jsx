@@ -53,7 +53,9 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app.state.activeStructure]);
 
-
+  // Build context once — only reconstructed when a DS hook or app changes.
+  // Individual DS hooks only update when their own state changes, so context
+  // is stable across unrelated renders.
   const ctx = useMemo(() => ({
     app, bst, linkedList, graph, stack, queue, hashSet, animator, getActiveDS,
   }), [app, bst, linkedList, graph, stack, queue, hashSet, animator, getActiveDS]);

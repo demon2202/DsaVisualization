@@ -1,5 +1,14 @@
 import { useRef, useCallback, useState } from 'react';
 
+/**
+ * useAnimator — clean step-based animation engine.
+ *
+ * Design goals:
+ *  - Zero timer leaks: every timeout is tracked and cleared on cancel
+ *  - Pause/resume via a Promise that resolves when unpaused
+ *  - No mutable ref juggling for resolve callbacks
+ *  - Speed changes take effect on the *next* step automatically
+ */
 export default function useAnimator(speed = 800) {
   const speedRef     = useRef(speed);
   const cancelledRef = useRef(false);

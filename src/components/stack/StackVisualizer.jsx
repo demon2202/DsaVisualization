@@ -1,67 +1,73 @@
-import React, { memo, useRef, useLayoutEffect } from 'react';
+import React, { memo, useRef, useLayoutEffect, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppState';
 
 const STATE_STYLE = {
-  push:    { bg: 'rgba(52,211,153,0.14)',  border: '#34d399', text: '#34d399' },
-  pop:     { bg: 'rgba(248,113,113,0.14)', border: '#f87171', text: '#f87171' },
-  peek:    { bg: 'rgba(251,191,36,0.12)',  border: '#fbbf24', text: '#fbbf24' },
-  compare: { bg: 'rgba(99,102,241,0.12)',  border: '#818cf8', text: '#a5b4fc' },
-  found:   { bg: 'rgba(52,211,153,0.18)',  border: '#34d399', text: '#34d399' },
+  push:    { bg: 'rgba(52,211,153,0.18)',  border: '#34d399', text: '#34d399', glow: '0 0 20px rgba(52,211,153,0.4)'  },
+  pop:     { bg: 'rgba(248,113,113,0.18)', border: '#f87171', text: '#f87171', glow: '0 0 20px rgba(248,113,113,0.4)' },
+  peek:    { bg: 'rgba(251,191,36,0.15)',  border: '#fbbf24', text: '#fbbf24', glow: '0 0 16px rgba(251,191,36,0.35)' },
+  compare: { bg: 'rgba(99,102,241,0.15)',  border: '#818cf8', text: '#a5b4fc', glow: '0 0 14px rgba(99,102,241,0.3)'  },
+  found:   { bg: 'rgba(52,211,153,0.22)',  border: '#34d399', text: '#34d399', glow: '0 0 22px rgba(52,211,153,0.5)'  },
 };
+const DEFAULT = { bg: 'var(--bg-raised)', border: 'var(--border)', text: 'var(--text-primary)', glow: 'none' };
 
-const DEFAULT_STYLE = {
-  bg: 'var(--bg-raised)',
-  border: 'var(--border)',
-  text: 'var(--text-primary)',
-};
-
-/** Animates enter via Web Animations API so it's decoupled from React re-renders */
-function StackItem({ item, actualIdx, isTop, itemState, isNew }) {
+function StackItem({ item, actualIdx, isTop, itemState, isNew, isPop }) {
   const ref = useRef(null);
-  const st = STATE_STYLE[itemState] || DEFAULT_STYLE;
+  const st  = STATE_STYLE[itemState] || DEFAULT;
   const active = !!itemState;
 
+  // Push: drop in from above with spring
   useLayoutEffect(() => {
     if (!isNew || !ref.current) return;
-    ref.current.animate(
-      [
-        { opacity: 0, transform: 'translateY(-16px) scale(0.9)' },
-        { opacity: 1, transform: 'translateY(0) scale(1)' },
-      ],
-      { duration: 280, easing: 'cubic-bezier(0.34,1.4,0.64,1)', fill: 'forwards' }
-    );
+    ref.current.animate([
+      { opacity: 0, transform: 'translateY(-32px) scale(0.85)' },
+      { opacity: 1, transform: 'translateY(4px)  scale(1.04)' },
+      { opacity: 1, transform: 'translateY(0)    scale(1)'    },
+    ], { duration: 360, easing: 'cubic-bezier(0.22,1,0.36,1)', fill: 'forwards' });
   }, [isNew]);
 
-  // Pop highlight — brief flash then item disappears (handled by state removal)
+  // Pop: fly up and fade
   useLayoutEffect(() => {
-    if (itemState !== 'pop' || !ref.current) return;
-    ref.current.animate(
-      [
-        { opacity: 1, transform: 'scale(1)' },
-        { opacity: 0, transform: 'translateY(-12px) scale(0.85)' },
-      ],
-      { duration: 220, delay: 200, easing: 'ease-in', fill: 'forwards' }
-    );
-  }, [itemState]);
+    if (!isPop || !ref.current) return;
+    ref.current.animate([
+      { opacity: 1, transform: 'translateY(0)    scale(1)'    },
+      { opacity: 0, transform: 'translateY(-28px) scale(0.8)' },
+    ], { duration: 280, delay: 80, easing: 'ease-in', fill: 'forwards' });
+  }, [isPop]);
 
   return (
-    <div
-      ref={ref}
-      style={{
-        ...s.item,
-        background: st.bg,
-        borderColor: st.border,
-        borderWidth: isTop ? '1.5px' : '1px',
-        transform: active ? 'scale(1.02)' : 'scale(1)',
-        transition: 'background 0.2s ease, border-color 0.2s ease, transform 0.18s ease',
-      }}
-    >
-      <span style={s.idx}>{actualIdx}</span>
-      <span style={{ ...s.value, color: active ? st.text : 'var(--text-primary)' }}>
+    <div ref={ref} style={{
+      ...s.item,
+      background:  st.bg,
+      borderColor: st.border,
+      boxShadow:   active ? st.glow : 'none',
+      borderWidth: isTop ? '2px' : '1px',
+      transform:   active && !isNew ? 'scale(1.03)' : 'scale(1)',
+      transition:  'background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.18s ease',
+    }}>
+      {/* Index */}
+      <span style={s.idx}>[{actualIdx}]</span>
+
+      {/* Value — scales up slightly when active */}
+      <span style={{ ...s.value, color: active ? st.text : 'var(--text-primary)',
+        fontSize: active ? '1.15rem' : '1rem',
+        transition: 'color 0.22s ease, font-size 0.18s ease',
+      }}>
         {item.value}
       </span>
+
+      {/* TOP badge */}
       {isTop && (
-        <span style={s.topBadge}>← TOP</span>
+        <div style={s.topBadge}>
+          <span style={s.topArrow}>◄</span>
+          <span>TOP</span>
+        </div>
+      )}
+
+      {/* State label */}
+      {active && (
+        <span style={{ ...s.stateTag, color: st.text, borderColor: `${st.border}40`, background: `${st.border}15` }}>
+          {itemState}
+        </span>
       )}
     </div>
   );
@@ -73,36 +79,49 @@ const StackVisualizer = memo(function StackVisualizer() {
 
   const prevIds = useRef(new Set());
   const newIds  = useRef(new Set());
+  const popIds  = useRef(new Set());
 
-  // Detect new items each render
   const currentIds = new Set(items.map(i => i.id));
   newIds.current = new Set([...currentIds].filter(id => !prevIds.current.has(id)));
+  // Items that just disappeared = pop candidates
+  popIds.current = new Set([...prevIds.current].filter(id => !currentIds.has(id)));
   prevIds.current = currentIds;
 
-  if (items.length === 0) {
+  if (!items.length) {
     return (
       <div className="empty-state anim-fade">
         <div className="empty-state-icon">▤</div>
         <div className="empty-state-title">empty stack</div>
-        <div className="empty-state-hint">Push values — last in, first out</div>
+        <div className="empty-state-hint">Push values — each one lands on top. Pop removes from top (LIFO).</div>
       </div>
     );
   }
 
-  const reversed = [...items].reverse(); // top of stack is visually at top
+  const reversed = [...items].reverse();
 
   return (
     <div style={s.container}>
-      <div style={s.stack}>
-        {/* TOP label */}
-        <div style={s.topLabel}>
-          <span style={s.topArrow}>↓</span>
-          <span style={s.topText}>push here</span>
+      {/* Utilization bar */}
+      <div style={s.utilizationWrap}>
+        <span style={s.utilLabel}>{items.length} / 20</span>
+        <div style={s.utilTrack}>
+          <div style={{ ...s.utilFill, width: `${(items.length / 20) * 100}%`,
+            background: items.length > 16 ? 'var(--rose)' : items.length > 12 ? 'var(--amber)' : 'var(--emerald)',
+          }} />
         </div>
+      </div>
 
+      {/* Push zone indicator */}
+      <div style={s.pushZone}>
+        <div style={s.pushArrow}>↓</div>
+        <span style={s.pushLabel}>push / pop</span>
+        <div style={s.pushArrow}>↓</div>
+      </div>
+
+      <div style={s.stack}>
         {reversed.map((item, vi) => {
           const actualIdx = items.length - 1 - vi;
-          const isTop = actualIdx === items.length - 1;
+          const isTop     = actualIdx === items.length - 1;
           return (
             <StackItem
               key={item.id}
@@ -111,14 +130,15 @@ const StackVisualizer = memo(function StackVisualizer() {
               isTop={isTop}
               itemState={itemStates[item.id]}
               isNew={newIds.current.has(item.id)}
+              isPop={itemStates[item.id] === 'pop'}
             />
           );
         })}
 
-        {/* Base */}
+        {/* Closed bottom */}
         <div style={s.base}>
           <div style={s.baseLine} />
-          <span style={s.baseLabel}>base</span>
+          <span style={s.baseLabel}>⊥ bottom</span>
         </div>
       </div>
     </div>
@@ -126,99 +146,24 @@ const StackVisualizer = memo(function StackVisualizer() {
 });
 
 const s = {
-  container: {
-    height: '100%',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    overflow: 'auto',
-    padding: '16px 20px 20px',
-  },
-  stack: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: '4px',
-    width: '100%',
-    maxWidth: '300px',
-  },
-  topLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    marginBottom: '6px',
-    paddingLeft: '2px',
-  },
-  topArrow: {
-    fontSize: '0.75rem',
-    color: 'var(--emerald)',
-    animation: 'float 1.6s ease-in-out infinite',
-    display: 'inline-block',
-  },
-  topText: {
-    fontSize: '0.62rem',
-    fontFamily: 'var(--font-mono)',
-    color: 'var(--text-muted)',
-    letterSpacing: '0.04em',
-  },
-  item: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '10px 14px',
-    borderRadius: '6px',
-    border: '1px solid',
-    gap: '12px',
-    cursor: 'default',
-  },
-  idx: {
-    fontSize: '0.6rem',
-    fontFamily: 'var(--font-mono)',
-    color: 'var(--text-dim)',
-    width: '20px',
-    flexShrink: 0,
-  },
-  value: {
-    fontSize: '1rem',
-    fontWeight: 700,
-    fontFamily: 'var(--font-mono)',
-    flex: 1,
-    transition: 'color 0.2s ease',
-  },
-  topBadge: {
-    fontSize: '0.6rem',
-    fontFamily: 'var(--font-mono)',
-    color: 'var(--emerald)',
-    fontWeight: 600,
-    letterSpacing: '0.04em',
-    opacity: 0.7,
-  },
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-    marginTop: '4px',
-  },
-  baseLine: {
-    width: '100%',
-    height: '2px',
-    borderRadius: '1px',
-    background: 'var(--border-hover)',
-  },
-  baseLabel: {
-    fontSize: '0.58rem',
-    fontFamily: 'var(--font-mono)',
-    color: 'var(--text-dim)',
-    letterSpacing: '0.06em',
-  },
+  container: { height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'auto', padding: '14px 20px 20px', gap: '8px' },
+  utilizationWrap: { display: 'flex', alignItems: 'center', gap: '10px', width: '100%', maxWidth: '300px' },
+  utilLabel: { fontSize: '0.62rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', flexShrink: 0 },
+  utilTrack: { flex: 1, height: '3px', background: 'var(--bg-overlay)', borderRadius: '2px', overflow: 'hidden' },
+  utilFill:  { height: '100%', borderRadius: '2px', transition: 'width 0.3s ease, background 0.3s ease' },
+  pushZone: { display: 'flex', alignItems: 'center', gap: '8px' },
+  pushArrow: { fontSize: '0.7rem', color: 'var(--emerald)', animation: 'float 1.4s ease-in-out infinite', display: 'inline-block' },
+  pushLabel: { fontSize: '0.6rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '0.04em' },
+  stack: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '3px', width: '100%', maxWidth: '300px' },
+  item: { display: 'flex', alignItems: 'center', padding: '9px 14px', borderRadius: '7px', border: '1px solid', gap: '10px', cursor: 'default', position: 'relative' },
+  idx: { fontSize: '0.58rem', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', width: '28px', flexShrink: 0 },
+  value: { fontWeight: 700, fontFamily: 'var(--font-mono)', flex: 1 },
+  topBadge: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6rem', fontFamily: 'var(--font-mono)', color: 'var(--emerald)', fontWeight: 700, opacity: 0.8 },
+  topArrow: { animation: 'float 1s ease-in-out infinite', display: 'inline-block' },
+  stateTag: { fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: '3px', border: '1px solid', flexShrink: 0 },
+  base: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', marginTop: '2px' },
+  baseLine: { width: '100%', height: '2.5px', borderRadius: '1px', background: 'var(--border-hover)' },
+  baseLabel: { fontSize: '0.58rem', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.06em' },
 };
-
-// Float keyframe — injected once
-if (typeof document !== 'undefined' && !document.getElementById('stack-kf')) {
-  const style = document.createElement('style');
-  style.id = 'stack-kf';
-  style.textContent = `@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }`;
-  document.head.appendChild(style);
-}
 
 export default StackVisualizer;
