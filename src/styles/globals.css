@@ -1,0 +1,239 @@
+@import 'tailwindcss';
+
+/* ─────────────────────────────────────────────────────────────
+   STRUCTURE — design tokens
+   Direction: "the product performs" · warm black ground, one gold
+   accent, League Spartan display over Figtree text.
+   Semantic data hues (inside the 3D instrument) stay far apart on
+   the wheel but are desaturated so nothing glows neon on black.
+   ───────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'League Spartan';
+  src: url('/fonts/LeagueSpartan-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Figtree';
+  src: url('/fonts/Figtree-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  /* Cold Snap: warm paper, deep oxblood ink, and a restrained mustard hit. */
+  --color-ink-950: #1b0d11;
+  --color-ink-900: #271218;
+  --color-ink-850: #32171e;
+  --color-ink-800: #3f1e24;
+  --color-ink-750: #4b272b;
+  --color-ink-700: #5a2d32;
+  --color-ink-600: #734348;
+  --color-ink-500: #895b5d;
+
+  --color-paper: #f5d7c4;
+  --color-paper-2: #efc6ae;
+  --color-paper-3: #e5ad90;
+  --color-oxblood: #641b27;
+  --color-carnival-paper: #f5d7c4;
+  --color-carnival-yellow: #f6d20b;
+  --color-carnival-red: #501822;
+  --color-carnival-ink: #210c13;
+
+  --color-bone: #f8e9dc;
+  --color-bone-dim: #dec5b8;
+  --color-muted: #b99c92;
+  --color-faint: #a18780;
+
+  --color-acid: #f2cc24;
+  --color-acid-deep: #c6a416;
+  --color-gold: #f2cc24;
+
+  /* data hues — the instrument's trace colours */
+  --color-probe: #e3a83e;
+  --color-flow: #7fb6d9;
+  --color-bad: #e06a5e;
+  --color-special: #a98bd9;
+
+  --font-display: 'League Spartan', 'Figtree', system-ui, sans-serif;
+  --font-sans: 'Figtree', system-ui, -apple-system, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  --radius-hair: 4px;
+  --radius-card: 6px;
+}
+
+@layer base {
+  :root {
+    --line: rgba(248, 226, 212, 0.12);
+    --line-2: rgba(248, 226, 212, 0.2);
+    --line-3: rgba(248, 226, 212, 0.34);
+    --bg: #1b0d11;
+    --surface: #32171e;
+    --surface-2: #4b272b;
+    --accent: #f2cc24;
+    --accent-ink: #1b0d11;
+    color-scheme: dark;
+
+    /* the five steps, far apart */
+    --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+    --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+    --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+    --step-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    font-size: var(--step-body);
+    line-height: 1.5;
+    font-kerning: normal;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  /* one corner radius for the whole product */
+  button,
+  input,
+  select {
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .panel {
+    border: 1px solid var(--line-2);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+
+  /* display type — League Spartan, tight, lowercase-friendly */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+    hyphens: none;
+  }
+
+  /* small interface label: the text face, sentence case, readable.
+     (kept the old class name so the instrument restyles in place) */
+  .label-xs {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-muted);
+  }
+
+  /* numerals: text face with tabular figures, never a mono voice */
+  .mono-num {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* halftone — carnival's placeholder treatment; pure CSS dots, no images */
+  .halftone {
+    background-image: radial-gradient(var(--color-ink-950) 1.5px, transparent 1.5px); /* taste-skill-ignore: carnival halftone dots, not a colour gradient */
+    background-size: 12px 12px;
+  }
+
+  /* masked line reveal — the page's one signature move */
+  .line-mask {
+    display: block;
+    overflow: hidden;
+  }
+  .line-mask > span {
+    display: block;
+  }
+}
+
+/* scrollbars, quiet */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .navigation-dock:not(.navigation-dock--pinned):hover,
+  .navigation-dock:not(.navigation-dock--pinned):focus-within {
+    width: 356px !important;
+  }
+
+  .navigation-dock:not(.navigation-dock--pinned):hover .navigation-dock__panel,
+  .navigation-dock:not(.navigation-dock--pinned):focus-within .navigation-dock__panel {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

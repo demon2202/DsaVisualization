@@ -1,141 +1,97 @@
-# DSA Visualization
+# STRUCTURE.
 
-<img width="1919" height="935" alt="image" src="https://github.com/user-attachments/assets/f5e91218-58fc-4330-a8a4-bde6dbf9adcd" />
-<img width="1919" height="940" alt="image" src="https://github.com/user-attachments/assets/c51177be-3748-4326-9155-11cb1036ae8d" />
+An interactive 3D laboratory for data structures & algorithms — a complete redesign of
+[demon2202/DsaVisualization](https://github.com/demon2202/DsaVisualization).
 
-An interactive, modern web application for visualizing fundamental data structures such as Binary Search Trees, Linked Lists, and Graphs. Built with React and styled using pure CSS, this tool brings learning to life with real-time, animated visualizations.
+Not a demo reel: every operation records a **timeline of complete 3D snapshots** that you can
+play, pause, scrub and step through, while the pseudocode highlights the exact lines being
+executed and live metrics (compares, swaps, expansions, load factor, balance factor…) update
+per frame.
 
-##  Live Demo
-
-Access the app live: [DSA Visualization on Vercel](https://dsa-visualization-omega.vercel.app)  
-*(Note: If there are loading issues, please try reloading the page.)* 
-
----
-
-##  Features
-
-- **Binary Search Tree (BST)**
-  - Insert, delete, and search nodes
-  - Perform In-order, Pre-order, and Post-order traversals
-- **Singly Linked List**
-  - Append, prepend, delete, and search nodes
-- **Undirected Graph**
-  - Create nodes and edges
-  - Visualize DFS and BFS traversals from any starting point
-- **Interactive Controls**
-  - User-friendly buttons for inserting, deleting, searching, and running algorithms
-- **Real-Time Animations**
-  - Dynamic step-by-step visualization of algorithm operations
-- **Modern UI/UX**
-  - Responsive layout, animated grid background, and glassmorphism design
-- **Analytics Panel**
-  - Displays tree height, node count, graph density, and operation status metrics
-- **Quick Reference**
-  - Panel listing time complexities and common use cases for each data structure :contentReference[oaicite:1]{index=1}
+**Landing** → the product performs: a two-tone first screen whose right half *is* the live
+lab (type a value, it inserts into the real tree), a drag row of true-size interface panels,
+proof modules, the syllabus as family tabs, and a gold closing field whose dialog carries
+your run into the lab. Lenis + GSAP underneath.
+**Lab** → full-viewport instrument: 12 structures, 40+ operations, orbitable WebGL stage,
+inspector, transport bar, pseudocode panel.
 
 ---
 
-##  Tech Stack
-
-- React (JavaScript)
-- Vite for development tooling
-- Pure CSS for animations and styling
-- HTML boilerplate for hosting and structure :contentReference[oaicite:2]{index=2}
-
----
-
-##  Getting Started
-
-### Prerequisites
-
-- Node.js (v14 or later)
-- npm or yarn package manager
-
-### Installation
+## Run it
 
 ```bash
-# Clone the repository
-git clone https://github.com/demon2202/DsaVisualization.git
-cd DsaVisualization
-
-# Install dependencies
 npm install
-# or
-yarn install
-````
-
-### Running the App Locally
-
-```bash
-npm run dev
-# or
-yarn dev
+npm run dev      # http://localhost:5173
+npm run build    # production bundle in dist/
+npm run preview  # serve the production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the app in action.
+Deployable as-is on Vercel/Netlify (Vite project, no env vars, no backend).
 
-### Building for Production
+## Stack
 
-```bash
-npm run build
-# or
-yarn build
+| Layer     | Choice |
+|-----------|--------|
+| UI        | React 19 + Vite 8, Tailwind 4, `motion` (Framer) for panel choreography |
+| 3D        | three.js + @react-three/fiber + drei, one custom ShaderMaterial (instanced icosahedra + boxes), postprocessing (bloom / chromatic aberration / vignette) |
+| Motion    | GSAP + ScrollTrigger (landing), Lenis (inertia scrolling), spring/damp interpolation inside the render loop |
+| State     | zustand store + a RAF timeline player; algorithm engines are plain JS modules |
+| Type      | League Spartan (display), Figtree (text), JetBrains Mono (literal code only) — self-hosted |
+| Art direction | dealt with `Leonxlnx/taste-skill` ("the product performs", warm black + gold); lint + real-browser inspector gate at 0 FAIL |
+
+## What's inside the lab
+
+| Family   | Entries |
+|----------|---------|
+| Trees    | Binary Search Tree, AVL (rotations) |
+| Linear   | Linked List, Stack, Queue, Deque |
+| Hashing  | Chained hash set, Open addressing (linear probe) |
+| Heaps    | Binary heap (insert / extract / heapify + array view) |
+| Graphs   | Weighted graph — BFS, DFS, Dijkstra, Prim MST |
+| Arrays   | Sorting — bubble, selection, insertion, shell, merge, quick, heap |
+| Grids    | Pathfinding — BFS, DFS, Dijkstra, Greedy, A* on paintable terrain (wall / mud / water) |
+
+Every entry: seeded demo state, parameterised operations, per-frame narration, complexity
+table, "worth knowing" notes and real-world uses.
+
+## Architecture
+
+```
+src/
+  lib/structures/   algorithm engines (pure JS). Each mutation returns
+                    { ok, steps, summary } where steps = absolute snapshots:
+                    { nodes, links, aux, note, code[], banner, focus, stats }
+  lib/registry.js   the 12 entries: ops, fields, complexity, facts, metrics
+  lib/pseudocode.js symbolic pseudocode blocks (id | indent | text)
+  lib/palette.js    one semantic colour language: amber = compare,
+                    violet = restructure, sky = traverse, acid = success, rose = remove
+  state/lab.js      zustand store + RAF player (dwell per step, speed ramps)
+  three/            Elements (2 InstancedMeshes + shader), Links (tubes/arrows/pulses),
+                    Stage (camera rig, ground, environment, post FX)
+  components/lab/   NavigationDock, OpsPanel, Inspector, Transport, CodePanel, Topbar
+  pages/            Landing.jsx (scroll story), Lab.jsx (the instrument), Compare.jsx
+  hooks/useLenis.js Lenis ↔ GSAP ticker bridge
 ```
 
-This will output the production-ready build in the `dist/` folder.
+Because frames are absolute snapshots, **scrubbing backwards is exact** — no delta replay.
 
----
+## Study features beyond the visuals
 
-## Project Structure
+- **Frame transcript** — every frame's narration listed in the inspector; click to jump.
+- **Deep links** — `#/lab/<entry>` opens straight into any instrument; the URL follows you.
+- **Prefs persist** — speed, quality, panel toggles survive a reload (localStorage).
+- **PNG export** — camera button in the stage saves the current frame.
+- **Build your own problem** — set custom starting data across the structures; graph: add
+  nodes / edges; grid: paint terrain *and* move start/goal; sorting: presets or your own
+  comma-separated array.
+- **Tests** — `npm test` runs the engine, custom-data and motion tests.
 
-```
-DsaVisualization/
-├── public/            # Static assets and index.html
-├── src/
-│   ├── components/    # Reusable UI components
-│   ├── visuals/       # Visualization logic for data structures
-│   ├── utils/         # Utility functions and helpers
-│   └── App.jsx        # Main application entry point
-├── package.json       # Project metadata and dependencies
-├── vite.config.js     # Vite configuration
-└── README.md          # This file
-```
+## Controls
 
-*(Adjust paths if your actual structure differs)*
-
----
-
-## Contributing
-
-Contributions are welcome! Whether it’s a bug fix, UI enhancement, or adding a new data structure:
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/YourFeature`)
-3. Commit your changes (`git commit -m 'Add new visualization'`)
-4. Push to your branch (`git push origin feature/YourFeature`)
-5. Open a Pull Request
-
-Please ensure your code is clean and include relevant tests or usage examples when needed.
-
----
+`space` play/pause · `←` `→` step · `r` restart · `e` end · `f` frame selection ·
+`c` code panel · `i` inspector · drag = orbit · wheel = zoom · click node = target it ·
+in Path: enable *paint terrain* and drag on the grid to sculpt walls/mud/water, then re-run.
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more details.
-
----
-
-## Contact & Support
-
-Need help or want to suggest a feature? Feel free to open an issue in the repository. I'd love to see what you build with it!
-
----
-
-### Why This README?
-
-* **Clear structure** to help users quickly understand what the project does.
-* **Setup instructions** that make it easy to run locally or build for production.
-* **Contribution guidelines** to encourage collaboration.
-* **Polished design**—presented in a structured, professional format.
-
----
+MIT — original project by demon2202; redesign keeps the same licence.
