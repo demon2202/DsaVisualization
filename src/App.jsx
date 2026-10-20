@@ -27,24 +27,17 @@ class ErrorBoundary extends Component {
     if (!this.state.error) return this.props.children
     return (
       <div className="grid min-h-dvh place-items-center bg-ink-950 px-6 text-center">
-        <div className="max-w-[46ch]">
-          <div className="display text-[clamp(28px,3vw,44px)] text-bone">the instrument jammed.</div>
-          <p className="mt-4 text-[17px] leading-relaxed text-muted">
-            Something in this view threw while rendering. Your structures and settings are safe — they live in the
-            store, not in the view.
+        <div className="max-w-[44ch]">
+          <div className="display text-[clamp(26px,3vw,40px)] text-bone">Something broke.</div>
+          <p className="mt-3 text-[14px] leading-relaxed text-muted">
+            This view failed to render. Reload the page to start again.
           </p>
-          <p className="mono-num mt-3 text-[14px] text-faint">{String(this.state.error?.message || this.state.error).slice(0, 140)}</p>
-          <div className="mt-7 flex justify-center gap-3">
-            <button
-              className="bg-bone px-5 py-2.5 text-[17px] font-semibold text-ink-950 hover:bg-gold"
-              onClick={() => this.setState({ error: null })}
-            >
+          <p className="code-face mt-3 text-[12px] text-faint">{String(this.state.error?.message || this.state.error).slice(0, 140)}</p>
+          <div className="mt-6 flex justify-center gap-2">
+            <button className="btn btn-primary px-4" onClick={() => this.setState({ error: null })}>
               Try again
             </button>
-            <button
-              className="border border-[var(--line-2)] px-5 py-2.5 text-[17px] font-semibold text-bone-dim hover:text-bone"
-              onClick={() => window.location.reload()}
-            >
+            <button className="btn px-4" onClick={() => window.location.reload()}>
               Reload page
             </button>
           </div>
@@ -61,9 +54,8 @@ function Boom() {
 const boomed = () => import.meta.env.DEV && typeof window !== 'undefined' && window.location.hash === '#boom'
 
 /**
- * Two surfaces, one store: the scrolling story (Landing) and the instrument
- * (Lab). The route swap is masked by a short ink wipe so the WebGL world
- * never appears to "reload".
+ * Two surfaces, one store: the landing page and the lab. The route swap is
+ * masked by a short ink wipe so the view never flashes.
  */
 export default function App() {
   const route = useLab((s) => s.route)
@@ -80,7 +72,16 @@ export default function App() {
             transition={{ duration: 0.28, ease: 'easeInOut' }}
             className="min-h-dvh"
           >
-            <Suspense fallback={<div className="grid h-dvh place-items-center bg-ink-950 text-[14px] text-muted">loading…</div>}>
+            <Suspense
+              fallback={
+                <div className="grid h-dvh place-items-center bg-ink-950">
+                  <span className="flex items-center gap-2.5">
+                    <span className="h-1.5 w-1.5 animate-pulse bg-signal" aria-hidden="true" />
+                    <span className="eyebrow">loading</span>
+                  </span>
+                </div>
+              }
+            >
               {boomed() ? <Boom /> : route === 'lab' ? <Lab /> : route === 'compare' ? <Compare /> : <Landing />}
             </Suspense>
           </motion.div>
@@ -89,7 +90,7 @@ export default function App() {
           key={`wipe-${route}`}
           initial={{ scaleY: 1 }}
           animate={{ scaleY: 0 }}
-          transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
+          transition={{ duration: 0.45, ease: [0.76, 0, 0.24, 1] }}
           className="pointer-events-none fixed inset-0 z-50 origin-top bg-ink-950"
         />
       </ErrorBoundary>

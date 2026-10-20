@@ -13,6 +13,9 @@ dist-ssr
 .vite
 .taste-skill
 
+# design-review scratch (screenshots from tools/shots.mjs)
+.review/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

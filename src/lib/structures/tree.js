@@ -9,9 +9,8 @@
  *     aux?, note, code:[lineIdx], stats?, focus?, banner? }
  */
 
-const X_STEP = 2.35
-const Y_STEP = 2.05
-const Z_STEP = 1.15
+const Y_STEP = 2.15
+const Z_STEP = 0.62
 
 let seq = 0
 const uid = () => `n${(++seq).toString(36)}`
@@ -43,33 +42,61 @@ function rebalance(n) {
   return n
 }
 
-/* ── layout: in-order index on X, depth on Y, depth on Z for real 3D ─────── */
+/**
+ * Layout: a tidy tree, not an in-order index.
+ *
+ * Leaves get consecutive slots; every parent sits over the midpoint of its
+ * children. A parent with one child is offset from it, so a degenerate chain
+ * still reads as a staircase rather than collapsing into a vertical line.
+ * The slot widens as the tree shrinks, so a 5-node tree fills the stage as
+ * confidently as a 30-node tree — and the root is always at x = 0.
+ */
+const leafCount = (n) => (n ? (!n.left && !n.right ? 1 : leafCount(n.left) + leafCount(n.right)) : 0)
+
 function layout(root, states = {}, linkStates = {}) {
   const nodes = []
   const links = []
-  let idx = 0
-  const walk = (n, depth, parentId) => {
+  if (!root) return { nodes, links }
+
+  const leaves = Math.max(1, leafCount(root))
+  const step = Math.max(1.3, Math.min(2.95, 23 / leaves))
+  const slots = new Map()
+  let cursor = 0
+
+  const place = (n, depth) => {
+    if (!n) return null
+    const left = place(n.left, depth + 1)
+    const own = cursor * step
+    cursor += 1
+    const right = place(n.right, depth + 1)
+    let x = own
+    if (left != null && right != null) x = (left + right) / 2
+    else if (left != null) x = left + step * 0.58
+    else if (right != null) x = right - step * 0.58
+    slots.set(n.id, { x, depth })
+    return x
+  }
+  place(root, 0)
+
+  const dx = slots.get(root.id).x
+  const walk = (n, parentId) => {
     if (!n) return
-    walk(n.left, depth + 1, n.id)
-    const x = idx++ * X_STEP
+    const slot = slots.get(n.id)
     nodes.push({
       id: n.id,
       value: n.value,
-      pos: [x, -depth * Y_STEP, depth * Z_STEP],
-      state: states[n.id] || (depth === 0 ? 'root' : 'base'),
-      depth,
+      pos: [slot.x - dx, -slot.depth * Y_STEP, slot.depth * Z_STEP],
+      state: states[n.id] || (slot.depth === 0 ? 'root' : 'base'),
+      depth: slot.depth,
     })
     if (parentId) {
       const key = `${parentId}->${n.id}`
       links.push({ id: key, from: parentId, to: n.id, state: linkStates[key] || 'tree' })
     }
-    walk(n.right, depth + 1, n.id)
+    walk(n.left, n.id)
+    walk(n.right, n.id)
   }
-  walk(root, 0, null)
-  // keep the root pinned to x=0 so growth reflows symmetrically
-  const rootPos = nodes.find((n) => n.id === root?.id)
-  const dx = rootPos ? rootPos.pos[0] : 0
-  for (const n of nodes) n.pos[0] -= dx
+  walk(root, null)
   return { nodes, links }
 }
 
@@ -217,7 +244,7 @@ export function createTree({ avl = false, seed = null } = {}) {
       steps.push(
         snap({
           states: { [root.id]: 'insert' },
-          note: `Tree is empty — ${v} becomes the root. Every later insert will be measured against it.`,
+          note: `Tree is empty. ${v} becomes the root.`,
           code: ['ins.root'],
           banner: 'ROOT',
         }),
@@ -288,7 +315,7 @@ export function createTree({ avl = false, seed = null } = {}) {
     steps.push(
       snap({
         states: { [path[path.length - 1]]: 'found' },
-        note: `${v} is in the tree. ${avl ? 'AVL invariant restored — height difference never exceeds 1.' : 'BST invariant holds: left < node < right.'}`,
+        note: `${v} is in the tree. ${avl ? 'AVL invariant restored: heights differ by at most 1.' : 'BST invariant holds: left < node < right.'}`,
         code: ['ins.done'],
         banner: avl ? 'BALANCED' : 'INSERTED',
       }),
@@ -321,7 +348,7 @@ export function createTree({ avl = false, seed = null } = {}) {
         steps.push(
           snap({
             states: Object.fromEntries(visited.map((id, i) => [id, i === visited.length - 1 ? 'found' : 'visited'])),
-            note: `${v} === ${n.value}. Found it after ${comparisons} comparison${comparisons === 1 ? '' : 's'} — the tree threw away half the remaining nodes each time.`,
+            note: `${v} === ${n.value}. Found after ${comparisons} comparison${comparisons === 1 ? '' : 's'}.`,
             code: ['sea.hit'],
             banner: 'FOUND',
             focus: focusOf(layout(root).nodes, n.id),
@@ -334,7 +361,7 @@ export function createTree({ avl = false, seed = null } = {}) {
       steps.push(
         snap({
           states: Object.fromEntries(visited.map((id, i) => [id, i === visited.length - 1 ? 'probe' : 'visited'])),
-          note: `${v} ${goLeft ? '<' : '>'} ${n.value} → go ${goLeft ? 'left' : 'right'}. That eliminates ${goLeft ? size(n.right) : size(n.left)} node${goLeft ? size(n.right) === 1 ? '' : 's' : size(n.left) === 1 ? '' : 's'} from the search.`,
+          note: `${v} ${goLeft ? '<' : '>'} ${n.value} → go ${goLeft ? 'left' : 'right'}. Eliminates ${goLeft ? size(n.right) : size(n.left)} node${goLeft ? size(n.right) === 1 ? '' : 's' : size(n.left) === 1 ? '' : 's'} from the search.`,
           code: goLeft ? ['sea.left'] : ['sea.right'],
           focus: focusOf(layout(root).nodes, n.id),
           statExtra: { comparisons },
@@ -345,7 +372,7 @@ export function createTree({ avl = false, seed = null } = {}) {
     steps.push(
       snap({
         states: Object.fromEntries(visited.map((id) => [id, 'visited'])),
-        note: `Hit a null pointer — ${v} is not in the tree. Search cost was still only ${comparisons} comparisons.`,
+        note: `Null pointer. ${v} is not in the tree; the search took ${comparisons} comparison${comparisons === 1 ? '' : 's'}.`,
         code: ['sea.miss'],
         banner: 'NOT FOUND',
         statExtra: { comparisons },
@@ -375,14 +402,14 @@ export function createTree({ avl = false, seed = null } = {}) {
         steps.push(snap({ states: pathStates({ [node.id]: 'probe' }), note: `${v} > ${node.value} → descend right to find it.`, code: ['del.right'], focus: focusOf(layout(root).nodes, node.id) }))
         node.right = del(node.right)
       } else {
-        steps.push(snap({ states: pathStates({ [node.id]: 'remove' }), note: `Found ${v}. Now the case that matters: how many children does it have?`, code: ['del.found'], banner: 'TARGET', focus: focusOf(layout(root).nodes, node.id) }))
+        steps.push(snap({ states: pathStates({ [node.id]: 'remove' }), note: `Found ${v}. Count its children to choose the delete case.`, code: ['del.found'], banner: 'TARGET', focus: focusOf(layout(root).nodes, node.id) }))
 
         if (!node.left || !node.right) {
           const child = node.left || node.right
           steps.push(
             snap({
               states: pathStates({ [node.id]: 'remove' }),
-              note: child ? `One child — lift ${child.value} up to take its place. No ordering is broken.` : `Leaf node — just drop it. The parent's pointer becomes null.`,
+              note: child ? `One child. Lift ${child.value} into its place.` : `Leaf node. Remove it; the parent's pointer becomes null.`,
               code: ['del.child'],
               banner: child ? 'ONE CHILD' : 'LEAF',
             }),
@@ -394,7 +421,7 @@ export function createTree({ avl = false, seed = null } = {}) {
         steps.push(
           snap({
             states: pathStates({ [node.id]: 'remove', [succ.id]: 'pivot' }),
-            note: `Two children — swap in the in-order successor: the smallest value in the right subtree (${succ.value}). That is the only value that can sit here without breaking order.`,
+            note: `Two children. Replace this value with the in-order successor: the smallest value in the right subtree (${succ.value}).`,
             code: ['del.succ'],
             banner: 'IN-ORDER SUCCESSOR',
             focus: focusOf(layout(root).nodes, succ.id),
@@ -404,7 +431,7 @@ export function createTree({ avl = false, seed = null } = {}) {
         steps.push(
           snap({
             states: pathStates({ [node.id]: 'swap' }),
-            note: `Value copied: this node now holds ${succ.value}. The duplicate down in the right subtree still has to go.`,
+            note: `Value copied. This node now holds ${succ.value}; remove the duplicate from the right subtree.`,
             code: ['del.copy'],
             banner: 'COPY VALUE',
           }),
@@ -435,7 +462,7 @@ export function createTree({ avl = false, seed = null } = {}) {
     root = del(root)
     steps.push(
       snap({
-        note: `${v} removed. ${avl ? 'AVL rebalanced along the whole path back to the root.' : 'BST ordering still holds for every remaining node.'}`,
+        note: `${v} removed. ${avl ? 'AVL rebalanced along the path to the root.' : 'BST ordering still holds for every remaining node.'}`,
         code: ['del.done'],
         banner: 'DELETED',
       }),
@@ -468,7 +495,7 @@ export function createTree({ avl = false, seed = null } = {}) {
     if (kind === 'in') {
       const walk = (n) => {
         if (!n) return
-        steps.push(snap({ note: `Descend into ${n.value}'s left subtree first — in-order always goes left before visiting.`, code: ['trav.descend'] }))
+        steps.push(snap({ note: `In-order: descend into ${n.value}'s left subtree before visiting.`, code: ['trav.descend'] }))
         walk(n.left)
         out.push(n.value)
         done.add(n.id)
@@ -557,7 +584,7 @@ export function createTree({ avl = false, seed = null } = {}) {
       return size(root)
     },
     stats,
-    snapshot: () => snap({ note: 'Idle — pick an operation to run.' }),
+    snapshot: () => snap({ note: 'Idle. Choose an operation.' }),
     insert,
     search,
     remove,

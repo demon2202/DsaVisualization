@@ -61,24 +61,53 @@ function bootFromHash() {
 }
 
 bootFromHash()
+/* the initial deep link is ours: without this, the writer's first frame would
+   treat it as an external navigation and boot it a second time */
+if (typeof window !== 'undefined') writtenHash = window.location.hash
 
 /* address-bar edits / hash navigation replay too (our own replaceState writes
    never fire hashchange, and writtenHash guards programmatic echoes) */
 if (typeof window !== 'undefined') {
+  /* the URL follows the work: entry, last run and current frame */
+  let last = writtenHash
+  let queued = false
+  let externalAt = 0
+
+  /* One adoption path for both the hashchange event and the writer's rAF
+     (either can see the new hash first). Recording it up front makes the
+     other path a no-op instead of a second boot or a clobbering echo. */
+  const adoptExternalHash = () => {
+    const current = window.location.hash
+    writtenHash = current
+    last = current
+    externalAt = performance.now()
+    bootFromHash()
+  }
+
   window.addEventListener('hashchange', () => {
     if (window.location.hash === writtenHash) return
-    bootFromHash()
+    adoptExternalHash()
   })
 
-  /* the URL follows the work: entry, last run and current frame */
-  let last = ''
-  let queued = false
   useLab.subscribe(() => {
     if (queued) return
     queued = true
     requestAnimationFrame(() => {
       queued = false
       const s = useLab.getState()
+
+      /* An external hash change (address bar, back/forward) must win over a
+         state echo. While playback rewrites the URL every frame, a navigation
+         can otherwise be clobbered before its hashchange handler runs. Adopt
+         the external URL here too, apply it immediately, and hold writes for a
+         beat so the route can settle. */
+      const current = window.location.hash
+      if (current !== writtenHash) {
+        adoptExternalHash()
+        return
+      }
+      if (performance.now() - externalAt < 250) return
+
       let next = '#/'
       if (s.route === 'compare') next = '#/compare'
       if (s.route === 'lab') {

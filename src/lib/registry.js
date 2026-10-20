@@ -85,9 +85,9 @@ const bstEntry = {
   name: 'Binary Search Tree',
   abbr: 'BST',
   scene: 'tree',
-  tagline: 'Every node splits the remaining search space in half.',
+  tagline: 'Left is smaller, right is larger.',
   blurb:
-    'A binary search tree keeps the invariant left < node < right at every single node. That one rule is what turns a lookup into a series of halving decisions instead of a scan — the same intuition behind binary search, but the data can grow and shrink without being re-sorted.',
+    'A binary search tree keeps smaller values on the left and larger values on the right. A lookup follows one branch at each node instead of scanning the whole set.',
   create: () => createTree({ avl: false }),
   seed: (m) => [48, 27, 68, 15, 35, 55, 79, 22, 31, 62, 9, 44].forEach((v) => m.silentInsert(v)),
   ops: treeOps(false),
@@ -99,9 +99,9 @@ const bstEntry = {
     { op: 'space', avg: 'O(n)', worst: 'O(n)' },
   ],
   facts: [
-    'The worst case is a linked list in disguise: insert 1,2,3,4,5 in order and the tree degenerates to depth n.',
-    'In-order traversal of a BST always prints values in ascending order — interviewers love that one.',
-    'Deleting a node with two children swaps in the in-order successor, never a random value.',
+    'Inserting sorted values makes the tree a linked list; its height becomes n.',
+    'In-order traversal returns the values in ascending order.',
+    'Deleting a node with two children replaces it with its in-order successor.',
   ],
   where: ['Database indexes', 'Autocomplete tries (variant)', 'Filesystem directories', 'std::map / TreeMap'],
   metrics: ['nodes', 'height', 'idealHeight', 'balanced', 'min', 'max'],
@@ -112,9 +112,9 @@ const avlEntry = {
   id: 'avl',
   name: 'AVL Tree',
   abbr: 'AVL',
-  tagline: 'A BST that refuses to degenerate — it rotates to stay balanced.',
+  tagline: 'A self-balancing binary search tree.',
   blurb:
-    'An AVL tree is a BST with one extra rule: at every node, the heights of the left and right subtrees may differ by at most 1. When an insert or delete breaks that rule, the tree repairs itself with one or two rotations on the way back up. That guarantee is what keeps every operation at O(log n) worst case, not just average.',
+    'An AVL tree is a BST with a height constraint: the left and right subtrees at every node may differ by at most one. Rotations restore that balance after an insert or delete, keeping operations O(log n) in the worst case.',
   create: () => createTree({ avl: true }),
   seed: (m) => [10, 20, 30, 40, 50, 25, 15, 5, 35, 45].forEach((v) => m.silentInsert(v)),
   ops: treeOps(true),
@@ -125,11 +125,11 @@ const avlEntry = {
     { op: 'rotation', avg: 'O(1)', worst: 'O(log n)' },
   ],
   facts: [
-    'Watch the LL, RR, LR and RL cases — the double rotations are the part people forget.',
-    'Balance factor = height(left) − height(right). Anything outside [−1, 1] triggers a rotation.',
-    'AVL is stricter than a red-black tree, so it searches faster but rebalances more often.',
+    'LL, RR, LR, and RL are the four rotation cases.',
+    'Balance factor = height(left) − height(right). It must stay in [−1, 1].',
+    'AVL trees are stricter than red-black trees: faster lookups, more rotations.',
   ],
-  where: ['In-memory indexes', 'Database lookup tables', 'Anywhere read-heavy and worst case matters'],
+  where: ['In-memory indexes', 'Database lookup tables', 'Read-heavy workloads'],
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -141,9 +141,9 @@ const listEntry = {
   name: 'Singly Linked List',
   abbr: 'List',
   scene: 'list',
-  tagline: 'Nodes scattered in memory, stitched together by pointers.',
+  tagline: 'Values linked by pointers.',
   blurb:
-    'A linked list stores each value in a node that also holds the address of the next one. Nothing has to be contiguous, so inserting at the front is a couple of pointer writes — the thing an array genuinely cannot do cheaply. The price is that there is no random access: to reach index k you must walk k links.',
+    'A linked list stores each value in a node with a pointer to the next. Inserting at the front takes constant time; reaching index k requires walking k links.',
   create: () => createList({ doubly: false }),
   seed: (m) => m.seed([12, 45, 7, 33, 58, 21]),
   ops: [
@@ -166,13 +166,13 @@ const listEntry = {
     { op: 'access(k)', avg: 'O(n)', worst: 'O(n)' },
     { op: 'search', avg: 'O(n)', worst: 'O(n)' },
     { op: 'prepend', avg: 'O(1)', worst: 'O(1)' },
-    { op: 'append*', avg: 'O(1)', worst: 'O(n)' },
+    { op: 'append', avg: 'O(1)', worst: 'O(n)' },
     { op: 'delete@head', avg: 'O(1)', worst: 'O(1)' },
   ],
   facts: [
-    '*Appending is O(1) only if you keep a tail pointer. Without one you walk the whole list first.',
-    'Reverse uses three pointers — prev, cur, next — and no extra memory. It is the most-asked list question.',
-    'A linked list node costs an extra pointer per element; for small values that overhead beats the data.',
+    'Appending is O(1) only with a tail pointer. Without one, it is O(n).',
+    'Reversing a list uses three pointers: prev, current, next.',
+    'Each node pays for an extra pointer; for small values, that overhead can exceed the data.',
   ],
   where: ['LRU caches', 'Kernel free-lists', 'Undo history', 'Chained hash buckets'],
   metrics: ['length', 'head', 'tail'],
@@ -184,9 +184,9 @@ const stackEntry = {
   name: 'Stack',
   abbr: 'Stack',
   scene: 'linear',
-  tagline: 'Last in, first out — the shape of every function call.',
+  tagline: 'Last in, first out.',
   blurb:
-    'A stack only lets you touch one end. Push adds to the top, pop removes from the top, and that restriction is exactly what makes it O(1) everywhere. It is the runtime model behind recursion, the mechanism behind your editor\'s undo, and the tool for anything that needs to "remember where I was".',
+    'A stack adds and removes at one end. Push and pop are O(1); recursion, undo, and expression parsing all use this order.',
   create: () => createLinear('stack'),
   seed: (m) => [24, 51, 17].forEach((v) => m.push(v)),
   ops: [
@@ -203,9 +203,9 @@ const stackEntry = {
     { op: 'search', avg: 'O(n)', worst: 'O(n)' },
   ],
   facts: [
-    'Run fact(5) to watch call frames stack up and unwind — that is literally what recursion costs you in memory.',
-    'Stack overflow is not the stack "running out of memory", it is running out of frames: depth without a base case.',
-    'Balanced parentheses, expression evaluation and browser history are all the same problem in disguise.',
+    'fact(5) shows call frames stacking and unwinding.',
+    'Stack overflow means too many frames, usually from a missing base case.',
+    'Balanced parentheses, expression evaluation, and undo are stack problems.',
   ],
   where: ['Call stack / recursion', 'Undo & redo', 'Expression parsing', 'DFS and backtracking'],
   metrics: ['size', 'top'],
@@ -217,9 +217,9 @@ const queueEntry = {
   name: 'Queue',
   abbr: 'Queue',
   scene: 'linear',
-  tagline: 'First in, first out — fairness as a data structure.',
+  tagline: 'First in, first out.',
   blurb:
-    'A queue adds at the back and removes from the front, so elements are served in the exact order they arrived. Implemented as a circular buffer it is O(1) at both ends with no shifting. It is the engine of BFS, of every job scheduler, and of anything described as "fair".',
+    'A queue adds at the back and removes from the front. A circular buffer makes both ends O(1); BFS and job schedulers are built on this order.',
   create: () => createLinear('queue'),
   seed: (m) => ['job-1', 'job-2', 'job-3'].forEach((v) => m.enqueue(v)),
   ops: [
@@ -234,9 +234,9 @@ const queueEntry = {
     { op: 'front', avg: 'O(1)', worst: 'O(1)' },
   ],
   facts: [
-    'BFS is just "queue + visited set". Level-order tree traversal is the same code with tree children.',
-    'A naive array queue is O(n) to dequeue because everything shifts; a circular buffer fixes that with two moving indices.',
-    'A priority queue is not this — it serves by importance, not arrival order. That is a heap.',
+    'BFS is a queue plus a visited set.',
+    'A naive array queue is O(n) to dequeue because every element shifts; a circular buffer fixes that.',
+    'A priority queue is a heap, not a queue: it serves by priority, not arrival.',
   ],
   where: ['BFS', 'Task schedulers', 'Print spoolers', 'Message brokers'],
   metrics: ['size', 'front', 'back'],
@@ -248,9 +248,9 @@ const dequeEntry = {
   name: 'Deque',
   abbr: 'Deque',
   scene: 'linear',
-  tagline: 'Both ends open — a stack and a queue at once.',
+  tagline: 'Push and pop at both ends.',
   blurb:
-    'A double-ended queue supports O(1) push and pop at either end. Use it from one end and it is a stack; from both and it becomes the natural structure for sliding windows, work-stealing schedulers and monotonic-queue tricks.',
+    'A deque supports push and pop at either end in O(1). Use one end and it behaves like a stack; use both and it handles queues and sliding windows.',
   create: () => createLinear('deque'),
   seed: (m) => {
     m.pushBack(18)
@@ -270,8 +270,8 @@ const dequeEntry = {
     { op: 'access(k)', avg: 'O(n)', worst: 'O(n)' },
   ],
   facts: [
-    'Sliding-window maximum is the classic deque problem: keep the window monotonically decreasing and the answer is always at the front.',
-    'Work-stealing schedulers (Go, Java ForkJoin) use a deque per worker — own end for the owner, other end for thieves.',
+    'A sliding-window maximum keeps a monotonic deque; the maximum stays at the front.',
+    'Work-stealing schedulers give each worker a deque.',
   ],
   where: ['Sliding window problems', 'Work-stealing schedulers', 'Browser history both ways', 'Undo/redo with redo'],
   metrics: ['size', 'front', 'back'],
@@ -294,9 +294,9 @@ const hashMapEntry = {
   name: 'Hash Table · Chaining',
   abbr: 'Chain',
   scene: 'hash',
-  tagline: 'A hash turns any key into an index; collisions become short lists.',
+  tagline: 'Collisions are stored in per-bucket lists.',
   blurb:
-    'Hashing trades order for speed: a hash function maps a key straight to a bucket, so a lookup costs one computation instead of a search. Collisions are unavoidable — with chaining, each bucket just holds a small linked list, and the table stays correct no matter how full it gets.',
+    'A hash function maps a key to a bucket, so lookups avoid scanning the table. Chaining stores colliding keys in a small list per bucket.',
   create: () => createHash({ capacity: 11, mode: 'chaining' }),
   seed: (m) => [12, 23, 34, 5, 16, 27].forEach((k) => m.silentInsert(k)),
   ops: hashOps(true),
@@ -306,9 +306,9 @@ const hashMapEntry = {
     { op: 'delete', avg: 'O(1)', worst: 'O(n)' },
   ],
   facts: [
-    'Load factor = entries / buckets. Most implementations resize at 0.75 — watch it climb in the HUD.',
-    'Worst case O(n) happens when every key collides, which is why hash functions must be hard to game.',
-    '12, 23 and 34 all hash to bucket 1 with capacity 11 — a real collision you can see chained together.',
+    'Load factor = entries / buckets. Many implementations resize around 0.75.',
+    'Worst-case O(n) happens when every key collides.',
+    '12, 23, and 34 all map to bucket 1 at capacity 11.',
   ],
   where: ['Object / dict / Map', 'Database sharding', 'Deduplication', 'Caches keyed by URL'],
   metrics: ['entries', 'capacity', 'loadFactor', 'bucketsUsed', 'longestChain'],
@@ -319,18 +319,18 @@ const hashProbeEntry = {
   id: 'hashprobe',
   name: 'Hash Table · Open Addressing',
   abbr: 'Probe',
-  tagline: 'No chains — on collision, walk forward to the next free slot.',
+  tagline: 'Collisions probe forward to the next free slot.',
   blurb:
-    'Open addressing keeps every entry directly in the array. On a collision it probes forward (linear probing here) until it finds an empty slot. That is extremely cache-friendly because the data is contiguous, but it clusters: a full neighbourhood makes every nearby lookup slower.',
+    'Open addressing stores collisions in the same array. A full slot triggers a probe forward; contiguous storage is cache-friendly, but clusters slow lookups.',
   create: () => createHash({ capacity: 11, mode: 'probing' }),
   seed: (m) => [12, 23, 5, 16, 30].forEach((k) => m.silentInsert(k)),
   ops: hashOps(false),
   facts: [
-    'Linear probing steps by 1; quadratic probing steps by 1, 4, 9… to break up clusters.',
-    'Deleting needs a tombstone, not an empty slot — a real gap would end a probe chain too early.',
-    'Load factor must stay well below 1; at 0.9 probes explode.',
+    'Linear probing steps by 1; quadratic probing breaks up clusters.',
+    'Deletes need tombstones; an empty slot would end a probe chain early.',
+    'Probe length grows sharply as the load factor approaches 1.',
   ],
-  where: ['Python dict (variant)', 'Rust HashMap alt', 'GPU memory pools', 'Anything cache-sensitive'],
+  where: ['Python dict (variant)', 'Rust hash maps', 'GPU memory pools', 'Cache-sensitive lookups'],
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -342,9 +342,9 @@ const heapEntry = {
   name: 'Binary Heap',
   abbr: 'Heap',
   scene: 'heap',
-  tagline: 'A complete tree stored in a flat array — the root is always the answer.',
+  tagline: 'The largest value stays at the root.',
   blurb:
-    'A binary heap is a complete binary tree where every parent beats its children (max-heap) or loses to them (min-heap). Because it is complete, it needs no pointers: children of index i live at 2i+1 and 2i+2, so the whole structure is just an array. That is why a priority queue is cheap.',
+    'A binary heap is a complete tree stored in an array: children of index i live at 2i+1 and 2i+2. Every parent beats its children, so the root is always the maximum.',
   create: () => createHeap({ max: true }),
   seed: (m) => m.heapify([42, 17, 63, 8, 51, 29, 74, 33]),
   ops: [
@@ -374,9 +374,9 @@ const heapEntry = {
     { op: 'heapify', avg: 'O(n)', worst: 'O(n)' },
   ],
   facts: [
-    'Floyd build-heap is O(n), not O(n log n) — most nodes are leaves and barely sift at all.',
-    'Heaps are not sorted, only partially ordered. Walking the array does not print ascending values.',
-    'A* and Dijkstra are only fast because a priority queue hands them the minimum in O(log n).',
+    'Build-heap is O(n), not O(n log n).',
+    'A heap is partially ordered, not sorted.',
+    'Dijkstra and A* use a priority queue to get the minimum in O(log n).',
   ],
   where: ['Priority queues', 'Dijkstra & A*', 'Heap sort', 'Median maintenance (two heaps)'],
   metrics: ['size', 'root', 'levels'],
@@ -391,16 +391,16 @@ const graphEntry = {
   name: 'Weighted Graph',
   abbr: 'Graph',
   scene: 'graph',
-  tagline: 'Nodes and edges — the shape of every network you will ever model.',
+  tagline: 'Weighted nodes and edges, four algorithms.',
   blurb:
-    'A graph is just relationships: nodes for things, weighted edges for the cost of moving between them. Four algorithms cover most of what you need — BFS and DFS for reachability and ordering, Dijkstra for shortest paths with weights, and Prim for the cheapest way to connect everything.',
+    'A graph is a set of nodes joined by weighted edges. BFS and DFS traverse, Dijkstra finds shortest paths, and Prim builds a minimum spanning tree.',
   create: () => createGraph(generateGraph(14, 7)),
   seed: () => {},
   ops: [
-    { id: 'bfs', label: 'BFS', tone: 'flow', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'bfs', run: (m, a) => m.bfs(a.start), why: 'Expands in rings, so on unweighted graphs the first time it touches a node is via a shortest path — the right tool for hop counts and reachability.' },
-    { id: 'dfs', label: 'DFS', tone: 'flow', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'dfs', run: (m, a) => m.dfs(a.start), why: 'Dives deep and backtracks: no shortest-path guarantee, but it is the backbone of cycle detection, topological order and connectivity components.' },
-    { id: 'dijkstra', label: 'Dijkstra', tone: 'acid', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'dijkstra', run: (m, a) => m.dijkstra(a.start), why: 'BFS ordered by accumulated weight: exact shortest paths with non-negative edges, expanding uniformly in cost rings around the source.' },
-    { id: 'prim', label: "Prim's MST", tone: 'special', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'prim', run: (m, a) => m.prim(a.start), why: 'Grows one connected tree by always taking the cheapest outgoing edge — minimum total cost to span every node, not paths from a source.' },
+    { id: 'bfs', label: 'BFS', tone: 'flow', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'bfs', run: (m, a) => m.bfs(a.start), why: 'Expands in rings. On unweighted graphs, the first visit is a shortest path.' },
+    { id: 'dfs', label: 'DFS', tone: 'flow', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'dfs', run: (m, a) => m.dfs(a.start), why: 'Explores deep before backtracking. It does not guarantee a shortest path.' },
+    { id: 'dijkstra', label: 'Dijkstra', tone: 'acid', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'dijkstra', run: (m, a) => m.dijkstra(a.start), why: 'BFS ordered by accumulated weight. Exact shortest paths for non-negative edges.' },
+    { id: 'prim', label: "Prim's MST", tone: 'special', fields: [{ key: 'start', label: 'from', type: 'node' }], code: 'prim', run: (m, a) => m.prim(a.start), why: 'Grows one tree by taking the cheapest edge leaving it.' },
     {
       id: 'addNode',
       label: 'Add node',
@@ -440,10 +440,10 @@ const graphEntry = {
     { op: 'space', avg: 'O(V+E)', worst: 'O(V+E)' },
   ],
   facts: [
-    'This implementation uses a naive O(V²) Dijkstra for clarity; a binary heap drops it to O(E log V).',
-    'BFS gives shortest paths only when edges are unweighted. Add weights and you need Dijkstra.',
-    'An MST connects every node at minimum total cost with exactly V−1 edges and no cycles.',
-    'Dijkstra is wrong with negative edges — that is Bellman-Ford\'s job.',
+    'This visualizer uses the O(V²) Dijkstra; a binary heap gives O(E log V).',
+    'BFS gives shortest paths only when edges are unweighted.',
+    'A minimum spanning tree has V−1 edges and no cycles.',
+    'Dijkstra requires non-negative edge weights.',
   ],
   where: ['Maps & routing', 'Social networks', 'Package dependency resolution', 'Network routing (OSPF)'],
   metrics: ['nodes', 'edges', 'density', 'mstCost'],
@@ -459,19 +459,19 @@ const sortEntry = {
   name: 'Sorting Algorithms',
   abbr: 'Sort',
   scene: 'array',
-  tagline: 'Seven ways to order the same array — and the cost of each.',
+  tagline: 'Seven sorts on one array.',
   blurb:
-    'Sorting looks like one problem and is actually a family of trade-offs: how many comparisons, how many moves, does it need extra memory, does it keep equal items in order, and does it get faster when the input is already nearly sorted. Run the same array through all of them and the differences stop being abstract.',
+    'Sorting algorithms trade comparisons, moves, memory, stability, and behavior on nearly sorted input. Running the same array through each makes those differences visible.',
   create: () => createSorter(randomArray(22, 100, mulberry(2026))),
   seed: () => {},
   ops: [
-    { id: 'bubble', label: 'Bubble', tone: 'bad', fields: [], code: 'bubble', run: (m) => m.bubble(), group: 'sort', why: 'Teaching tool, not a production sort: O(n²) even on average, but its early-exit pass makes it the clearest way to see what a comparison and a swap cost.' },
-    { id: 'selection', label: 'Selection', tone: 'bad', fields: [], code: 'selection', run: (m) => m.selection(), group: 'sort', why: 'Always O(n²) compares but only O(n) swaps — the right pick when writing memory is far more expensive than reading it.' },
-    { id: 'insertion', label: 'Insertion', tone: 'probe', fields: [], code: 'insertionSort', run: (m) => m.insertion(), group: 'sort', why: 'O(n) on nearly-sorted input and stable, which is why real libraries finish with it for small or almost-ordered runs.' },
-    { id: 'shell', label: 'Shell', tone: 'probe', fields: [], code: 'shell', run: (m) => m.shell(), group: 'sort', why: 'Insertion sort plus far-apart gap passes: breaks up early inversions cheaply, in place, with a gap-sequence-dependent bound.' },
-    { id: 'merge', label: 'Merge', tone: 'flow', fields: [], code: 'merge', run: (m) => m.merge(), group: 'sort', why: 'Guaranteed O(n log n) and stable, and it merges sequential runs — the reason it wins on disk and linked lists despite the extra O(n) memory.' },
-    { id: 'quick', label: 'Quick', tone: 'acid', fields: [], code: 'quick', run: (m) => m.quick(), group: 'sort', why: 'In place with tiny constants and cache-friendly scans: usually the fastest in practice, but a bad pivot makes it O(n²), so pivot choice is everything.' },
-    { id: 'heap', label: 'Heap', tone: 'special', fields: [], code: 'heapSort', run: (m) => m.heap(), group: 'sort', why: 'Worst-case O(n log n) in place with no extra memory — the safe guarantee when quicksort\'s tail risk is unacceptable, at the cost of cache-hostile jumps.' },
+    { id: 'bubble', label: 'Bubble', tone: 'bad', fields: [], code: 'bubble', run: (m) => m.bubble(), group: 'sort', why: 'O(n²) on average. The early-exit pass makes it O(n) on already sorted input.' },
+    { id: 'selection', label: 'Selection', tone: 'bad', fields: [], code: 'selection', run: (m) => m.selection(), group: 'sort', why: 'Always O(n²) comparisons, but at most O(n) swaps.' },
+    { id: 'insertion', label: 'Insertion', tone: 'probe', fields: [], code: 'insertionSort', run: (m) => m.insertion(), group: 'sort', why: 'O(n) on nearly sorted input; stable and fast for small arrays.' },
+    { id: 'shell', label: 'Shell', tone: 'probe', fields: [], code: 'shell', run: (m) => m.shell(), group: 'sort', why: 'Insertion sort with gap passes; breaks up inversions early.' },
+    { id: 'merge', label: 'Merge', tone: 'flow', fields: [], code: 'merge', run: (m) => m.merge(), group: 'sort', why: 'Guaranteed O(n log n) and stable, with O(n) extra memory.' },
+    { id: 'quick', label: 'Quick', tone: 'acid', fields: [], code: 'quick', run: (m) => m.quick(), group: 'sort', why: 'Usually fastest in practice; a bad pivot gives O(n²).' },
+    { id: 'heap', label: 'Heap', tone: 'special', fields: [], code: 'heapSort', run: (m) => m.heap(), group: 'sort', why: 'O(n log n) worst case, in place, with poor cache locality.' },
     {
       id: 'shuffle',
       label: 'New array',
@@ -501,7 +501,7 @@ const sortEntry = {
           .map(Number)
           .filter(Number.isFinite)
           .slice(0, 48)
-        if (nums.length < 2) return { ok: false, error: 'Give me at least two numbers', steps: [] }
+        if (nums.length < 2) return { ok: false, error: 'Enter at least two numbers.', steps: [] }
         m.reset(nums)
         return { ok: true, steps: [], summary: `Array set to ${nums.join(', ')}` }
       },
@@ -517,10 +517,10 @@ const sortEntry = {
     { op: 'heap', avg: 'O(n log n)', worst: 'O(n log n)', best: 'O(n log n)' },
   ],
   facts: [
-    'Run "nearly sorted" through insertion sort and bubble sort — both collapse to almost O(n).',
-    'Reversed input is quicksort\'s worst case with a last-element pivot. Production sorts randomise or median-of-three.',
-    'Merge sort is the only one here that is both stable and guaranteed O(n log n) — it pays with O(n) memory, visible as the row behind the array.',
-    'Heapsort needs no extra memory but walks the array in a jumping pattern, so it is cache-hostile.',
+    'Insertion and bubble sort approach O(n) on nearly sorted input.',
+    'With a last-element pivot, reversed input is quicksort\'s worst case.',
+    'Merge sort is stable and O(n log n), but needs O(n) extra memory.',
+    'Heapsort is in place and O(n log n), but jumps through memory.',
   ],
   where: ['Database ORDER BY', 'std::sort (introsort)', 'External merge sort on disk', 'Dedup via sort + scan'],
   metrics: ['comparisons', 'swaps', 'writes', 'sorted', 'total'],
@@ -535,9 +535,9 @@ const pathEntry = {
   name: 'Grid Pathfinding',
   abbr: 'Path',
   scene: 'grid',
-  tagline: 'Same four searches, now with a heuristic — watch the search area shrink.',
+  tagline: 'Five searches on a grid you can edit.',
   blurb:
-    'A grid is a graph where every cell has four neighbours. Run BFS, Dijkstra, Greedy and A* on the identical map and the difference is visible: uninformed searches flood everything, a heuristic pulls the flood toward the goal. Terrain costs (mud, water) are what separate Dijkstra from plain BFS.',
+    'A grid is a graph with four neighbours per cell. BFS and Dijkstra flood the map; Greedy and A* use a heuristic to focus the search; DFS finds a path without promising the shortest one.',
   create: () => createGrid(21, 15, 3),
   seed: () => {},
   ops: [
@@ -566,10 +566,10 @@ const pathEntry = {
     { op: 'Greedy', avg: 'O(E log V)', worst: 'O(E log V)' },
   ],
   facts: [
-    'A* = Dijkstra + heuristic. If h never overestimates (admissible), A* is guaranteed optimal.',
-    'Greedy best-first is fast and frequently wrong: it can be dragged into a dead end by the estimate alone.',
-    'DFS on a grid produces a winding, usually terrible path — a good reminder that "a path" ≠ "the best path".',
-    'Count the expanded cells in the HUD: that number is the real cost difference between these algorithms.',
+    'A* is Dijkstra plus an admissible heuristic.',
+    'Greedy best-first can be fast and suboptimal.',
+    'DFS on a grid finds a path, not the shortest one.',
+    'Expanded cells are the search cost.',
   ],
   where: ['Game navigation', 'Robot motion planning', 'Routing & logistics', 'Maze solvers'],
   metrics: ['visited', 'frontier', 'pathLength', 'pathCost', 'walls'],
@@ -584,10 +584,10 @@ export const entryById = (id) => ENTRIES.find((e) => e.id === id) || ENTRIES[0]
 export const entriesByFamily = (family) => ENTRIES.filter((e) => e.family === family)
 
 export const TONE = {
-  acid: { fg: '#c9a45a', bg: 'rgba(201,164,90,0.10)', bd: 'rgba(201,164,90,0.32)' },
-  probe: { fg: '#e3a83e', bg: 'rgba(227,168,62,0.10)', bd: 'rgba(227,168,62,0.30)' },
-  flow: { fg: '#7fb6d9', bg: 'rgba(127,182,217,0.10)', bd: 'rgba(127,182,217,0.30)' },
-  bad: { fg: '#e06a5e', bg: 'rgba(224,106,94,0.10)', bd: 'rgba(224,106,94,0.30)' },
-  special: { fg: '#a98bd9', bg: 'rgba(169,139,217,0.10)', bd: 'rgba(169,139,217,0.30)' },
-  ghost: { fg: '#b9b9b1', bg: 'rgba(255,255,255,0.03)', bd: 'rgba(255,255,255,0.12)' },
+  acid: { fg: '#ff5a36', bg: 'rgba(255,90,54,0.10)', bd: 'rgba(255,90,54,0.30)' },
+  probe: { fg: '#ff5a36', bg: 'rgba(255,90,54,0.10)', bd: 'rgba(255,90,54,0.30)' },
+  flow: { fg: '#8fa6b2', bg: 'rgba(143,166,178,0.10)', bd: 'rgba(143,166,178,0.30)' },
+  bad: { fg: '#d97a67', bg: 'rgba(217,122,103,0.10)', bd: 'rgba(217,122,103,0.30)' },
+  special: { fg: '#b3a1c9', bg: 'rgba(179,161,201,0.10)', bd: 'rgba(179,161,201,0.30)' },
+  ghost: { fg: '#8f8a80', bg: 'rgba(242,239,233,0.04)', bd: 'rgba(242,239,233,0.12)' },
 }

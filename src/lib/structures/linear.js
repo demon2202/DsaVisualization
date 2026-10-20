@@ -15,7 +15,7 @@ export function createLinear(mode = 'stack') {
 
   const pos = (i, total) => {
     if (mode === 'stack') return [0, i * BLOCK - 2.2, 0]
-    return [(i - (Math.max(total, 6) - 1) / 2) * QSTEP, 0, 0]
+    return [(i - (Math.max(total, 6) - 1) / 2) * QSTEP, 0.66, 0]
   }
 
   function snap(o = {}) {
@@ -26,9 +26,11 @@ export function createLinear(mode = 'stack') {
         value: it.value,
         pos: pos(i, items.length),
         state: states[it.id] || 'base',
-        block: mode === 'stack' ? { w: 3.1, h: BLOCK * 0.82, d: 2.1 } : { w: QSTEP * 0.84, h: 1.5, d: 1.7 },
+        block: mode === 'stack' ? { w: 3.1, h: BLOCK * 0.82, d: 1.75 } : { w: QSTEP * 0.84, h: 1.32, d: 1.42 },
+        inset: true,
         tag: i === items.length - 1 && mode === 'stack' ? 'top' : i === 0 && mode !== 'stack' ? 'front' : i === items.length - 1 && mode !== 'stack' ? 'back' : null,
         frame: it.frame || null,
+        sub: it.frame ? String(it.frame) : null,
       })),
       links:
         mode === 'stack'
@@ -58,7 +60,7 @@ export function createLinear(mode = 'stack') {
     steps.push(
       snap({
         states: { [it.id]: 'insert' },
-        note: extra.note || `push(${v}) — the value lands on top. Nothing else moves: that is why a stack push is O(1).`,
+        note: extra.note || `push(${v}). The value lands on top; nothing else moves, so push is O(1).`,
         code: extra.code || ['st.push'],
         banner: extra.banner || 'PUSH',
         focus: pos(items.length - 1, items.length),
@@ -72,7 +74,7 @@ export function createLinear(mode = 'stack') {
     const steps = []
     if (!items.length) return { ok: false, error: 'Stack is empty', steps }
     const it = last()
-    steps.push(snap({ states: { [it.id]: 'remove' }, note: extra.preNote || `pop() takes ${it.value} off the top. The most recently added value is always the first one out — LIFO.`, code: extra.preCode || ['st.popPre'], banner: 'POP', focus: pos(items.length - 1, items.length) }))
+    steps.push(snap({ states: { [it.id]: 'remove' }, note: extra.preNote || `pop() takes ${it.value} off the top. Last in, first out.`, code: extra.preCode || ['st.popPre'], banner: 'POP', focus: pos(items.length - 1, items.length) }))
     items.pop()
     steps.push(
       snap({
@@ -89,7 +91,7 @@ export function createLinear(mode = 'stack') {
     const steps = []
     if (!items.length) return { ok: false, error: 'Stack is empty', steps }
     const it = last()
-    steps.push(snap({ states: { [it.id]: 'probe' }, note: `peek() reads the top (${it.value}) without removing it. Browsers use exactly this for the Back button.`, code: ['st.peek'], banner: 'TOP', focus: pos(items.length - 1, items.length) }))
+    steps.push(snap({ states: { [it.id]: 'probe' }, note: `peek() reads the top value (${it.value}) without removing it.`, code: ['st.peek'], banner: 'TOP', focus: pos(items.length - 1, items.length) }))
     return { ok: true, steps, summary: `peek() → ${it.value}`, value: it.value }
   }
 
@@ -98,7 +100,7 @@ export function createLinear(mode = 'stack') {
     const steps = []
     const k = Math.max(1, Math.min(9, Number(n) || 5))
     items = []
-    steps.push(snap({ note: `We will compute factorial(${k}) with plain recursion. Every call needs its own frame: its argument and somewhere to put the result. The runtime stack is what holds them.`, code: ['rec.intro'], banner: `fact(${k})` }))
+    steps.push(snap({ note: `factorial(${k}) with plain recursion. Each call gets a stack frame for its argument and return value.`, code: ['rec.intro'], banner: `fact(${k})` }))
 
     const calls = []
     for (let i = k; i >= 0; i--) {
@@ -123,7 +125,7 @@ export function createLinear(mode = 'stack') {
       steps.push(
         snap({
           states: { [it.id]: 'found' },
-          note: i === 0 ? `Base case returns 1. Now the stack unwinds — each frame multiplies the returned value by its own argument.` : `fact(${i}) returns ${acc}. Its frame is destroyed and control goes back to fact(${i + 1}).`,
+          note: i === 0 ? `Base case returns 1. Each frame then multiplies the result by its argument as the stack unwinds.` : `fact(${i}) returns ${acc}. Its frame is destroyed and control returns to fact(${i + 1}).`,
           code: ['rec.base', 'rec.ret'],
           banner: `RETURN ${acc}`,
           focus: pos(items.length - 1, items.length),
@@ -140,7 +142,7 @@ export function createLinear(mode = 'stack') {
       )
       acc *= i + 1
     }
-    steps.push(snap({ note: `factorial(${k}) = ${acc}. Recursion depth equalled ${k + 1} frames — that is exactly what blows the stack when a recursion has no base case.`, code: ['rec.done'], banner: `${acc}` }))
+    steps.push(snap({ note: `factorial(${k}) = ${acc}. The run used ${k + 1} stack frames; recursion without a base case eventually exhausts them.`, code: ['rec.done'], banner: `${acc}` }))
     return { ok: true, steps, summary: `fact(${k}) = ${acc}` }
   }
 
@@ -152,7 +154,7 @@ export function createLinear(mode = 'stack') {
     steps.push(
       snap({
         states: { [it.id]: 'insert' },
-        note: `enqueue(${value}) joins at the back. Everyone already in the queue keeps their position — FIFO.`,
+        note: `enqueue(${value}) joins at the back. Existing items keep their position; first in, first out.`,
         code: ['q.enq'],
         banner: 'ENQUEUE',
         focus: pos(items.length - 1, items.length),
@@ -165,9 +167,9 @@ export function createLinear(mode = 'stack') {
     const steps = []
     if (!items.length) return { ok: false, error: 'Queue is empty', steps }
     const it = items[0]
-    steps.push(snap({ states: { [it.id]: 'remove' }, note: `dequeue() removes ${it.value} from the front — it has waited the longest.`, code: ['q.deqPre'], banner: 'DEQUEUE', focus: pos(0, items.length) }))
+    steps.push(snap({ states: { [it.id]: 'remove' }, note: `dequeue() removes ${it.value} from the front.`, code: ['q.deqPre'], banner: 'DEQUEUE', focus: pos(0, items.length) }))
     items.shift()
-    steps.push(snap({ note: `Returned ${it.value}. Every remaining item slid one position forward; size is now ${items.length}. BFS and job schedulers are built on exactly this.`, code: ['q.deq'] }))
+    steps.push(snap({ note: `Returned ${it.value}. Every remaining item moved one position forward; size is now ${items.length}. BFS and job schedulers use this order.`, code: ['q.deq'] }))
     return { ok: true, steps, summary: `dequeue() → ${it.value}`, value: it.value }
   }
 
@@ -183,14 +185,14 @@ export function createLinear(mode = 'stack') {
     const steps = []
     const it = { id: uid(), value }
     items.unshift(it)
-    steps.push(snap({ states: { [it.id]: 'insert' }, note: `pushFront(${value}) — a deque inserts at both ends in O(1). A plain queue cannot do this without shifting everything.`, code: ['dq.pf'], banner: 'PUSH FRONT', focus: pos(0, items.length) }))
+    steps.push(snap({ states: { [it.id]: 'insert' }, note: `pushFront(${value}). A deque inserts at either end in O(1); a plain queue would shift every element.`, code: ['dq.pf'], banner: 'PUSH FRONT', focus: pos(0, items.length) }))
     return { ok: true, steps, summary: `pushFront(${value})` }
   }
   function pushBack(value) {
     const steps = []
     const it = { id: uid(), value }
     items.push(it)
-    steps.push(snap({ states: { [it.id]: 'insert' }, note: `pushBack(${value}) — the other end of the deque. Sliding-window maximum problems use both ends constantly.`, code: ['dq.pb'], banner: 'PUSH BACK', focus: pos(items.length - 1, items.length) }))
+    steps.push(snap({ states: { [it.id]: 'insert' }, note: `pushBack(${value}). Sliding-window maximum uses both ends of a deque.`, code: ['dq.pb'], banner: 'PUSH BACK', focus: pos(items.length - 1, items.length) }))
     return { ok: true, steps, summary: `pushBack(${value})` }
   }
   function popFront() {
@@ -206,7 +208,7 @@ export function createLinear(mode = 'stack') {
     const steps = []
     if (!items.length) return { ok: false, error: 'Deque is empty', steps }
     const it = items[items.length - 1]
-    steps.push(snap({ states: { [it.id]: 'remove' }, note: `popBack() → ${it.value}. A deque used from one end is a stack; used from both, it is a sliding window.`, code: ['dq.popb'], banner: 'POP BACK', focus: pos(items.length - 1, items.length) }))
+    steps.push(snap({ states: { [it.id]: 'remove' }, note: `popBack() → ${it.value}.`, code: ['dq.popb'], banner: 'POP BACK', focus: pos(items.length - 1, items.length) }))
     items.pop()
     steps.push(snap({ note: `Back removed; size ${items.length}.` }))
     return { ok: true, steps, summary: `popBack() → ${it.value}` }
@@ -220,7 +222,7 @@ export function createLinear(mode = 'stack') {
     get values() {
       return items.map((i) => i.value)
     },
-    snapshot: () => snap({ note: 'Idle — add elements and watch the ends behave differently.' }),
+    snapshot: () => snap({ note: 'Add elements to either end.' }),
     push,
     pop,
     peek,

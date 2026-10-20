@@ -2,6 +2,11 @@ import { motion } from 'motion/react'
 import { useLab, SPEEDS } from '../../state/lab'
 import Glyph from './Glyph'
 
+/**
+ * Transport — one row, one job: move through time.
+ * A rectangular instrument, not a toolbar: play is the only filled control,
+ * every other action stays quiet until hovered.
+ */
 export default function Transport() {
   const playing = useLab((s) => s.playing)
   const steps = useLab((s) => s.steps)
@@ -13,126 +18,109 @@ export default function Transport() {
   const seek = useLab((s) => s.seek)
   const jumpEnd = useLab((s) => s.jumpEnd)
   const setSpeed = useLab((s) => s.setSpeed)
-  const reRun = useLab((s) => s.reRun)
-  const frame = useLab((s) => s.frame)
-  const practiceOn = useLab((s) => s.practice.on)
-  const togglePractice = useLab((s) => s.togglePractice)
 
   const has = steps.length > 0
-  const pct = has ? (index / Math.max(1, steps.length - 1)) * 100 : 0
+  const atStart = index === 0
+  const atEnd = index >= steps.length - 1
+  const pct = has ? (steps.length <= 1 ? 100 : (index / (steps.length - 1)) * 100) : 0
+
+  const cycleSpeed = () => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="pointer-events-auto absolute bottom-4 left-1/2 z-20 w-[min(680px,calc(100%-2rem))] -translate-x-1/2"
+      transition={{ delay: 0.08, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+      className="pointer-events-auto absolute bottom-4 left-1/2 z-20 w-[min(780px,calc(100%-1rem))] -translate-x-1/2 md:bottom-5"
+      role="group"
+      aria-label="Playback"
     >
-      <div className="panel flex items-center gap-2 border-acid/25 bg-ink-900/95 px-3 py-2.5 shadow-[0_12px_32px_-10px_rgba(0,0,0,0.7)]">
+      <div className="flex items-center gap-1 border border-[var(--line-2)] bg-[#0a0a0a]/95 px-1.5 py-1.5 backdrop-blur-md">
         <button
-          aria-label="Restart (r)" onClick={restart}
-          disabled={!has || index === 0}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] text-muted transition-colors hover:bg-ink-700 hover:text-bone disabled:opacity-30"
+          onClick={restart}
+          disabled={!has || atStart}
+          className="icon-btn hidden h-8 w-8 sm:grid"
+          aria-label="Restart run (r)"
           title="Restart (r)"
         >
-          <Glyph name="restart" size={15} />
+          <Glyph name="restart" size={14} />
         </button>
         <button
-          aria-label="Step back (left arrow)"
-          onClick={stepBy.bind(null, -1)}
-          disabled={!has || index === 0}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] text-muted transition-colors hover:bg-ink-700 hover:text-bone disabled:opacity-30"
-          title="Step back (←)"
+          onClick={() => stepBy(-1)}
+          disabled={!has || atStart}
+          className="icon-btn h-8 w-8"
+          aria-label="Previous frame (left arrow)"
+          title="Previous frame (←)"
         >
           <Glyph name="stepBack" size={15} />
         </button>
+
         <button
-          aria-label={playing ? 'Pause (space)' : 'Play (space)'} onClick={togglePlay}
-          disabled={!has}
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-[6px] transition-colors duration-200 disabled:opacity-30 ${
-            playing ? 'bg-bone text-ink-950' : 'bg-acid text-ink-950'
-          }`}
+          onClick={togglePlay}
+          disabled={!has || steps.length < 2}
+          className="grid h-9 w-9 shrink-0 place-items-center bg-signal text-[#080706] transition-colors hover:bg-bone disabled:opacity-25"
+          aria-label={playing ? 'Pause' : 'Play'}
           title="Play / pause (space)"
         >
-          <Glyph name={playing ? 'pause' : 'play'} size={16} />
+          <Glyph name={playing ? 'pause' : 'play'} size={15} />
         </button>
+
         <button
-          aria-label="Step forward (right arrow)"
-          onClick={stepBy.bind(null, 1)}
-          disabled={!has || index >= steps.length - 1}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] text-muted transition-colors hover:bg-ink-700 hover:text-bone disabled:opacity-30"
-          title="Step forward (→)"
+          onClick={() => stepBy(1)}
+          disabled={!has || atEnd}
+          className="icon-btn h-8 w-8"
+          aria-label="Next frame (right arrow)"
+          title="Next frame (→)"
         >
           <Glyph name="stepFwd" size={15} />
         </button>
         <button
-          aria-label="Jump to end (e)" onClick={jumpEnd}
-          disabled={!has || index >= steps.length - 1}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] text-muted transition-colors hover:bg-ink-700 hover:text-bone disabled:opacity-30"
-          title="Skip to end (e)"
+          onClick={jumpEnd}
+          disabled={!has || atEnd}
+          className="icon-btn hidden h-8 w-8 sm:grid"
+          aria-label="Jump to the last frame (e)"
+          title="Jump to end (e)"
         >
-          <Glyph name="end" size={15} />
+          <Glyph name="end" size={14} />
         </button>
 
-        <div className="relative mx-2 h-6 flex-1">
-          <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 overflow-hidden rounded-full bg-ink-600">
-            <div className="h-full rounded-full bg-acid/80 transition-[width] duration-100" style={{ width: `${pct}%` }} />
+        <div className="relative min-w-0 flex-1 px-2">
+          <div className="pointer-events-none absolute inset-x-2 inset-y-0 flex items-center justify-between" aria-hidden="true">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <span key={i} className="h-[4px] w-px bg-[var(--line-2)]" />
+            ))}
           </div>
           <input
             type="range"
+            className="scrub relative z-10"
             min={0}
             max={Math.max(0, steps.length - 1)}
             value={index}
-            disabled={!has}
+            disabled={!has || steps.length < 2}
             onChange={(e) => seek(Number(e.target.value))}
-            className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
-            aria-label="Timeline scrub"
+            aria-label="Timeline frame"
+            aria-valuetext={has ? `Frame ${index + 1} of ${steps.length}` : 'No run recorded'}
+            style={{ '--track': `linear-gradient(to right, var(--color-signal) ${pct}%, var(--color-ink-700) ${pct}%)` }}
           />
-          {has && (
-            <div
-              className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ink-950 bg-gold text-ink-950"
-              style={{ left: `${pct}%` }}
-            />
+        </div>
+
+        <span className="mono-num hidden w-[58px] shrink-0 text-right text-[11px] text-faint md:block">
+          {has ? (
+            <>
+              <span className="text-bone-dim">{index + 1}</span>/{steps.length}
+            </>
+          ) : (
+            '—/—'
           )}
-        </div>
+        </span>
 
-        <div className="mono-num w-[74px] shrink-0 text-right text-[13px] text-bone-dim">
-          {has ? `${index + 1} / ${steps.length}` : '— / —'}
-        </div>
-
-        <div className="mx-1 h-5 w-px shrink-0 bg-[var(--line)]" />
-
-        <div className="flex shrink-0 items-center gap-0.5 rounded-[5px] bg-ink-800 p-0.5" role="group" aria-label="Playback speed">
-          {SPEEDS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSpeed(s)}
-              aria-pressed={speed === s}
-              className={`mono-num rounded-[3px] px-1.5 py-1 text-[12px] font-semibold transition-colors ${
-                speed === s ? 'bg-ink-600 text-acid' : 'text-faint hover:text-bone-dim'
-              }`}
-            >
-              {s}×
-            </button>
-          ))}
-        </div>
-
-        <div className="mx-1 h-5 w-px shrink-0 bg-[var(--line)]" />
-        <button aria-label="Re-run last operation" onClick={reRun} disabled={!has} className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] text-muted transition-colors hover:bg-ink-700 hover:text-bone disabled:opacity-30" title="Re-run last operation">
-          <Glyph name="spark" size={14} />
-        </button>
         <button
-          aria-label="Practice mode — predict the next frame"
-          onClick={togglePractice}
-          title="Practice mode (p)"
-          className={`grid h-8 w-8 shrink-0 place-items-center rounded-[4px] transition-colors ${
-            practiceOn ? 'bg-gold text-ink-950' : 'text-muted hover:bg-ink-700 hover:text-bone'
-          }`}
+          onClick={cycleSpeed}
+          className="mono-num shrink-0 border border-[var(--line)] px-2 py-1.5 text-[10.5px] text-bone-dim transition-colors hover:border-[var(--line-3)] hover:text-bone"
+          title="Cycle playback speed"
+          aria-label={`Playback speed ${speed}× — click to change`}
         >
-          <Glyph name="quiz" size={15} />
-        </button>
-        <button aria-label="Re-frame camera (f)" onClick={frame} className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] text-muted transition-colors hover:bg-ink-700 hover:text-bone" title="Re-frame camera (f)">
-          <Glyph name="camera" size={15} />
+          {speed}×
         </button>
       </div>
     </motion.div>

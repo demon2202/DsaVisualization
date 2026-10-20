@@ -151,6 +151,51 @@ export default function Glyph({ name, size = 18, stroke = 1.4 }) {
         <path d="m12.1 12.1 4.2 4.2" />
       </g>
     ),
+    menu: (
+      <g {...p}>
+        <path d="M4 6h12M4 10h12M4 14h8" />
+      </g>
+    ),
+    close: (
+      <g {...p}>
+        <path d="m5.4 5.4 9.2 9.2M14.6 5.4l-9.2 9.2" />
+      </g>
+    ),
+    chevron: (
+      <g {...p}>
+        <path d="m7.4 4.8 5.2 5.2-5.2 5.2" />
+      </g>
+    ),
+    panel: (
+      <g {...p}>
+        <rect x="3" y="4" width="14" height="12" rx="1.4" />
+        <path d="M12.6 4v12" />
+      </g>
+    ),
+    book: (
+      <g {...p}>
+        <path d="M4 4.2h5.2A2.8 2.8 0 0 1 12 7v9.2a2.4 2.4 0 0 0-2.4-2.4H4z" />
+        <path d="M16 4.2h-1.6A2.4 2.4 0 0 0 12 6.6v9.6a2.4 2.4 0 0 1 2.4-2.4H16z" opacity="0.55" />
+      </g>
+    ),
+    gauge: (
+      <g {...p}>
+        <path d="M3.4 14a7.2 7.2 0 1 1 13.2 0" />
+        <path d="m10 10 3-2.6" />
+        <circle cx="10" cy="10" r="1" fill="currentColor" stroke="none" />
+      </g>
+    ),
+    terminal: (
+      <g {...p}>
+        <rect x="3" y="4" width="14" height="12" rx="1.4" />
+        <path d="m6.4 8 2.2 2.2-2.2 2.2M10.6 12.6h3.2" />
+      </g>
+    ),
+    plus: (
+      <g {...p}>
+        <path d="M10 4.6v10.8M4.6 10h10.8" />
+      </g>
+    ),
   }
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true" style={{ display: 'block' }}>

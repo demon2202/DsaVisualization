@@ -11,7 +11,7 @@ export const TERRAIN = {
   wall: { cost: Infinity, label: 'wall' },
 }
 
-const CELL = 0.78
+const CELL = 0.82
 
 function mulberry32(a) {
   return function () {
@@ -49,13 +49,20 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
       }
     }
   }
-  const at = (r, c) => cells[r * cols + c]
+  /*
+   * Bounds-checked lookup. Without the check, c = -1 indexes the previous
+   * row's last column (and c = cols the next row's first), so a "4-neighbour"
+   * search could step across the map edge — a real correctness bug that made
+   * paths teleport between opposite sides of the grid.
+   */
+  const at = (r, c) => (r >= 0 && r < rows && c >= 0 && c < cols ? cells[r * cols + c] : null)
   let start = at(Math.floor(rows / 2), 1)
   let end = at(Math.floor(rows / 2), cols - 2)
   start.terrain = 'open'
   end.terrain = 'open'
 
-  const posOf = (cell) => [(cell.c - (cols - 1) / 2) * CELL, (cell.r - (rows - 1) / 2) * -CELL, 0]
+  /* the grid lies flat on the stage floor: columns on x, rows on z */
+  const posOf = (cell) => [(cell.c - (cols - 1) / 2) * CELL, 0, (-cell.r + (rows - 1) / 2) * CELL]
 
   const neighbours = (cell) => {
     const out = []
@@ -80,23 +87,35 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
       nodes: cells.map((cell) => {
         let state = states[cell.id]
         if (!state) {
-          if (cell.terrain === 'wall') state = 'wall'
-          else if (cell.id === start.id) state = 'found'
-          else if (cell.id === end.id) state = 'reject'
+          if (cell.id === start.id) state = 'start'
+          else if (cell.id === end.id) state = 'goal'
+          else if (cell.terrain === 'wall') state = 'wall'
           else if (cell.terrain === 'mud') state = 'mud'
           else if (cell.terrain === 'water') state = 'water'
-          else state = 'idle'
+          else state = 'open'
         }
+        const isEnd = state === 'start' || state === 'goal'
+        const h =
+          cell.terrain === 'wall' && state === 'wall'
+            ? 0.74
+            : state === 'path'
+              ? 0.3
+              : state === 'visited'
+                ? 0.2
+                : state === 'frontier'
+                  ? 0.24
+                  : isEnd
+                    ? 0.26
+                    : 0.06
+        const [x, , z] = posOf(cell)
         return {
           id: cell.id,
           value: null,
-          pos: posOf(cell),
+          pos: [x, h / 2, z],
           state,
-          tile: {
-            w: CELL * 0.86,
-            h: cell.terrain === 'wall' ? 1.5 : state === 'path' ? 0.34 : 0.16,
-            d: CELL * 0.86,
-          },
+          /* the endpoints keep their letters even once the path paints them */
+          glyph: cell.id === start.id ? 'S' : cell.id === end.id ? 'G' : null,
+          tile: { w: CELL * 0.88, h, d: CELL * 0.88 },
         }
       }),
       links: [],
@@ -135,20 +154,20 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
     }
 
     push(start, algo === 'astar' ? h(start) : algo === 'greedy' ? h(start) : 0)
-    states[start.id] = 'found'
+    states[start.id] = 'start'
     steps.push(
       snap({
         states,
         note:
           algo === 'astar'
-            ? `A* scores every candidate with f = g (real cost so far) + h (Manhattan estimate to the goal). The estimate is what stops it flooding the whole map.`
+            ? `A* scores candidates with f = g + h, where g is cost so far and h is the Manhattan estimate. The estimate focuses the search.`
             : algo === 'greedy'
-              ? `Greedy best-first uses only h — the estimate. It heads straight for the goal, fast but with no optimality guarantee.`
+              ? `Greedy best-first uses only h. It heads for the goal quickly, without an optimality guarantee.`
               : algo === 'dijkstra'
-                ? `Dijkstra expands strictly by real cost g, ignoring direction. Slower than A*, but optimal even with weird terrain weights.`
+                ? `Dijkstra expands by cost g, ignoring direction. Slower than A*, but optimal with weighted terrain.`
                 : algo === 'dfs'
-                  ? `DFS on a grid just burrows in one direction until it hits a wall, then backtracks. It finds *a* path, rarely a good one.`
-                  : `BFS expands in rings, so the first time it reaches the goal it has found the fewest-steps path — but it ignores terrain cost.`,
+                  ? `DFS follows one direction until it hits a wall, then backtracks. It finds a path, not the shortest one.`
+                  : `BFS expands in rings. The first time it reaches the goal is the fewest-steps path, but it ignores terrain cost.`,
         code: ['pf.init'],
         banner: algo.toUpperCase(),
       }),
@@ -162,7 +181,7 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
       closed.add(cell.id)
       visitedCount++
       if (cell.id !== start.id && cell.id !== end.id) states[cell.id] = 'visited'
-      else if (cell.id === end.id) states[cell.id] = 'reject'
+      else if (cell.id === end.id) states[cell.id] = 'goal'
 
       if (cell.id === end.id) {
         found = true
@@ -185,7 +204,7 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
         steps.push(
           snap({
             states: { ...states },
-            note: `Expand ${cell.terrain === 'open' ? 'open' : cell.terrain} cell at (${cell.c},${cell.r}) — cost so far ${gScore.get(cell.id)}. ${algo === 'astar' ? `Priority f = ${gScore.get(cell.id)} + ${h(cell)} = ${gScore.get(cell.id) + h(cell)}.` : algo === 'greedy' ? `Priority is pure estimate: ${h(cell)}.` : `Priority is real cost: ${gScore.get(cell.id)}.`}`,
+            note: `Expand ${cell.terrain === 'open' ? 'open' : cell.terrain} cell at (${cell.c},${cell.r}). Cost so far ${gScore.get(cell.id)}. ${algo === 'astar' ? `Priority f = ${gScore.get(cell.id)} + ${h(cell)} = ${gScore.get(cell.id) + h(cell)}.` : algo === 'greedy' ? `Estimate h = ${h(cell)}.` : algo === 'dijkstra' ? 'Priority is accumulated cost.' : ''}`,
             code: algo === 'astar' ? ['pf.expand', 'pf.score'] : ['pf.expand'],
             marks: { visited: visitedCount, frontier: pq.length },
             aux: { kind: 'priority', title: algo === 'dfs' ? 'stack' : 'priority queue', items: pq.slice(0, 8).map((p) => ({ value: `${p.cell.c},${p.cell.r}`, state: 'frontier', sub: String(p.f) })) },
@@ -196,16 +215,25 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
     }
 
     if (!found) {
-      steps.push(snap({ states, note: `Queue drained without reaching the goal — the end cell is walled off. ${visitedCount} cells were explored to prove that.`, code: ['pf.nopath'], banner: 'NO PATH', marks: { visited: visitedCount } }))
+      steps.push(snap({ states, note: `No path. The goal is walled off; ${visitedCount} cells were explored.`, code: ['pf.nopath'], banner: 'NO PATH', marks: { visited: visitedCount } }))
       return { ok: false, steps, summary: 'No path exists' }
     }
 
-    // reconstruct
+    /*
+     * Reconstruct by ids. `came` stores the predecessor *cell*, so the walk
+     * has to take its id; storing the object into the id list used to enter
+     * the list and map lookup as different key types, which silently broke
+     * the traced path and dropped the goal's own state.
+     */
     const path = []
     let c = end.id
     while (c) {
       path.unshift(c)
-      c = came.get(c)
+      c = came.get(c)?.id
+    }
+    const startOfPath = path[0]
+    if (startOfPath !== start.id) {
+      return { ok: false, steps, summary: 'Path reconstruction failed' }
     }
     let cost = 0
     path.forEach((id, i) => {
@@ -213,12 +241,12 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
         const cell = cells.find((x) => x.id === id)
         cost += costOf(cell)
       }
-      states[id] = 'path'
+      if (id !== start.id && id !== end.id) states[id] = 'path'
       if (i % 2 === 0 || path.length < 40) {
         steps.push(
           snap({
             states: { ...states },
-            note: i === path.length - 1 ? `Path traced back from the goal to the start: ${path.length} cells, terrain cost ${cost}.` : `Walk the predecessor chain backwards — ${path.length - i} cells left to colour.`,
+            note: i === path.length - 1 ? `Path traced from the goal to the start: ${path.length} cells, terrain cost ${cost}.` : `Follow the predecessor chain: ${path.length - i} cells left.`,
             code: ['pf.trace'],
             banner: i === path.length - 1 ? `${algo.toUpperCase()} PATH` : 'TRACE',
             marks: { visited: visitedCount, pathLength: path.length, pathCost: cost },
@@ -229,7 +257,7 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
     steps.push(
       snap({
         states,
-        note: `Done. ${algo.toUpperCase()} expanded ${visitedCount} cells and produced a path of ${path.length} cells costing ${cost}. Fewer expansions = a better-informed search.`,
+        note: `Done. ${algo.toUpperCase()} expanded ${visitedCount} cells and produced a path of ${path.length} cells costing ${cost}. Fewer expansions means a more informed search.`,
         code: ['pf.done'],
         banner: `${visitedCount} EXPANDED`,
         marks: { visited: visitedCount, pathLength: path.length, pathCost: cost },
@@ -286,7 +314,7 @@ export function createGrid(cols = 21, rows = 15, seed = 3) {
     },
     start: () => start.id,
     end: () => end.id,
-    snapshot: () => snap({ note: 'Idle — run a search to flood the grid.' }),
+    snapshot: () => snap({ note: 'Run a search.' }),
     bfs: () => runPath('bfs'),
     dfs: () => runPath('dfs'),
     dijkstra: () => runPath('dijkstra'),

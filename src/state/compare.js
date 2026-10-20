@@ -125,13 +125,3 @@ export const useCompare = create((set, get) => ({
   seekA: (i) => set((s) => ({ iA: Math.max(0, Math.min(i, s.stepsA.length - 1)) })),
   seekB: (i) => set((s) => ({ iB: Math.max(0, Math.min(i, s.stepsB.length - 1)) })),
 }))
-
-/** the array order a finished run left behind, read from its last snapshot */
-export function finalOrder(steps) {
-  const last = steps?.[steps.length - 1]
-  if (!last) return []
-  return [...last.nodes]
-    .filter((n) => n.bar)
-    .sort((a, b) => a.bar.index - b.bar.index)
-    .map((n) => n.value)
-}

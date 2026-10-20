@@ -68,9 +68,9 @@ const CODE = {
     del.done|1|return node
   `,
   traverseIn: `
-    trav.descend|1|inorder(node.left)        // left subtree first
-    trav.in|1|visit(node.value)           // then the node itself
-    trav.done|1|inorder(node.right)       // then the right subtree
+    trav.descend|1|inorder(node.left)
+    trav.in|1|visit(node.value)
+    trav.done|1|inorder(node.right)
   `,
   traversePre: `
     trav.pre|1|visit(node.value); preorder(left); preorder(right)
@@ -304,7 +304,7 @@ const CODE = {
     hx.done|0|return top
   `,
   heapPeek: `
-    hk.root|0|return a[0]                 // O(1) — the whole point
+    hk.root|0|return a[0]                 // O(1)
   `,
   heapify: `
     hb.intro|0|for i ← n/2−1 down to 0:      // skip the leaves

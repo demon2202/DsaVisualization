@@ -1,32 +1,33 @@
 import { useLab } from '../../state/lab'
+import Glyph from './Glyph'
 
 /**
- * Graph editing toolbar: every control mutates the REAL graph machine and
+ * Graph editing bar. Every control mutates the real graph machine and
  * re-snapshots, so whatever you sculpt is exactly what the algorithms run on.
- * Keyboard paths: the toolbar buttons are focusable; Delete removes the
- * selected edge; Escape leaves edit mode.
+ * Delete removes the selected edge; Escape leaves edit mode.
  */
 export default function GraphEdit() {
   const editMode = useLab((s) => s.editMode)
   const setEditMode = useLab((s) => s.setEditMode)
   const selectedLink = useLab((s) => s.selectedLink)
   const setSelectedLink = useLab((s) => s.setSelectedLink)
-
   const machine = useLab((s) => s.machine)
   const sync = useLab((s) => s.syncMachine)
   const edge = selectedLink ? machine.edges.find((e) => e.id === selectedLink) : null
 
   return (
-    <div className="pointer-events-auto absolute left-1/2 top-4 z-20 flex -translate-x-1/2 flex-wrap items-center justify-center gap-2" data-ui>
+    <div className="pointer-events-auto absolute left-1/2 top-3 z-10 flex w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5">
       <button
         onClick={() => setEditMode(!editMode)}
         aria-pressed={editMode}
-        className={`rounded-[4px] px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-          editMode ? 'bg-gold text-ink-950' : 'bg-ink-850 text-bone-dim hover:text-bone'
+        className={`btn h-8 px-3 text-[12px] ${
+          editMode ? 'border-signal/60 bg-signal/10 text-signal' : 'bg-[#080808]/95'
         }`}
       >
-        {editMode ? 'editing graph' : 'edit graph'}
+        <Glyph name="graphs" size={13} />
+        {editMode ? 'Done editing' : 'Edit graph'}
       </button>
+
       {editMode && (
         <>
           <button
@@ -35,16 +36,19 @@ export default function GraphEdit() {
               sync()
               useLab.getState().setEditFocus(machine.nodes[machine.nodes.length - 1].id)
             }}
-            className="rounded-[4px] bg-ink-850 px-3 py-1.5 text-[13px] font-semibold text-bone-dim transition-colors hover:text-bone"
+            className="btn h-8 bg-[#080808]/95 px-3 text-[12px]"
           >
-            add node
+            Add node
           </button>
-          <span className="label-xs hidden max-w-[34ch] sm:inline">drag nodes (or arrows to nudge the focused one) · click an edge to weight or cut it</span>
+          <span className="hidden border border-[var(--line)] bg-[#080808]/95 px-2.5 py-1.5 text-[10.5px] text-faint lg:block">
+            drag to move · click an edge to edit
+          </span>
         </>
       )}
+
       {edge && (
-        <div className="flex items-center gap-2 rounded-[4px] bg-ink-850 px-2.5 py-1.5">
-          <span className="label-xs">weight</span>
+        <div className="flex items-center gap-1 border border-[var(--line-2)] bg-[#080808] px-1.5 py-1">
+          <span className="px-1 text-[10px] uppercase tracking-[0.12em] text-faint">weight</span>
           <button
             onClick={() => {
               machine.setWeight(edge.id, edge.weight - 1)
@@ -52,11 +56,11 @@ export default function GraphEdit() {
             }}
             disabled={edge.weight <= 1}
             aria-label="Decrease edge weight"
-            className="mono-num grid h-6 w-6 place-items-center rounded-[4px] bg-ink-750 text-bone-dim transition-colors hover:text-bone disabled:opacity-30"
+            className="icon-btn h-6 w-6 disabled:opacity-30"
           >
-            −
+            <span aria-hidden="true">−</span>
           </button>
-          <span className="mono-num w-6 text-center text-[14px] text-bone" aria-live="polite">
+          <span className="mono-num w-5 text-center text-[12.5px] text-bone" aria-live="polite">
             {edge.weight}
           </span>
           <button
@@ -66,9 +70,9 @@ export default function GraphEdit() {
             }}
             disabled={edge.weight >= 99}
             aria-label="Increase edge weight"
-            className="mono-num grid h-6 w-6 place-items-center rounded-[4px] bg-ink-750 text-bone-dim transition-colors hover:text-bone disabled:opacity-30"
+            className="icon-btn h-6 w-6 disabled:opacity-30"
           >
-            +
+            <span aria-hidden="true">+</span>
           </button>
           <button
             onClick={() => {
@@ -76,12 +80,9 @@ export default function GraphEdit() {
               setSelectedLink(null)
               sync()
             }}
-            className="rounded-[4px] bg-bad/20 px-2.5 py-1 text-[13px] font-semibold text-bad transition-colors hover:bg-bad/30"
+            className="ml-1 px-2 py-1 text-[11px] font-medium text-bad transition-colors hover:bg-bad/10"
           >
-            cut edge
-          </button>
-          <button onClick={() => setSelectedLink(null)} className="px-1 text-[13px] text-muted hover:text-bone" aria-label="Close edge editor">
-            close
+            Delete
           </button>
         </div>
       )}

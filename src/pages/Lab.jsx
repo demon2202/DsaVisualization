@@ -1,93 +1,34 @@
-import { useCallback, useEffect, useRef } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useLab } from '../state/lab'
-import Stage from '../three/Stage'
 import Topbar from '../components/lab/Topbar'
-import NavigationDock from '../components/lab/NavigationDock'
-import OpsPanel from '../components/lab/OpsPanel'
+import Sidebar from '../components/lab/Sidebar'
 import Inspector from '../components/lab/Inspector'
 import PracticePanel from '../components/lab/PracticePanel'
 import GraphEdit from '../components/lab/GraphEdit'
 import Transport from '../components/lab/Transport'
-import CodePanel from '../components/lab/CodePanel'
-import Glyph from '../components/lab/Glyph'
-
-function StageToggles() {
-  const showCode = useLab((s) => s.showCode)
-  const showInfo = useLab((s) => s.showInfo)
-  const autoRotate = useLab((s) => s.autoRotate)
-  const quality = useLab((s) => s.quality)
-  const toggleCode = useLab((s) => s.toggleCode)
-  const toggleInfo = useLab((s) => s.toggleInfo)
-  const setAutoRotate = useLab((s) => s.setAutoRotate)
-  const setQuality = useLab((s) => s.setQuality)
-
-  const btn = (on) =>
-    `grid h-8 w-8 place-items-center rounded-[4px] border transition-colors duration-200 ${
-      on ? 'border-acid/40 bg-acid/10 text-acid' : 'border-[var(--line)] bg-ink-900/70 text-muted hover:text-bone'
-    }`
-
-  return (
-    <div className="pointer-events-auto absolute right-4 top-4 z-20 flex gap-1.5">
-      <button
-        className={btn(false)}
-        aria-label="Save a PNG of the viewport"
-        onClick={() => {
-          const canvas = document.querySelector('canvas')
-          if (!canvas) return
-          canvas.toBlob((blob) => {
-            if (!blob) return
-            const a = document.createElement('a')
-            const st = useLab.getState()
-            a.href = URL.createObjectURL(blob)
-            a.download = `structure-${st.entry.id}-frame-${st.index + 1}.png`
-            a.click()
-            setTimeout(() => URL.revokeObjectURL(a.href), 4000)
-            st.toastIt('ok', 'Frame saved as PNG')
-          }, 'image/png')
-        }}
-        title="Save this frame as PNG"
-      >
-        <Glyph name="camera" size={14} />
-      </button>
-      <button className={btn(showCode)} onClick={toggleCode} aria-label="Toggle pseudocode (c)" title="Toggle pseudocode (c)">
-        <Glyph name="code" size={14} />
-      </button>
-      <button className={btn(showInfo)} onClick={toggleInfo} aria-label="Toggle detail panel (i)" title="Toggle detail panel (i)">
-        <Glyph name="info" size={14} />
-      </button>
-      <button className={btn(autoRotate)} onClick={() => setAutoRotate(!autoRotate)} aria-label="Toggle slow orbit" title="Slow orbit when idle">
-        <Glyph name="orbit" size={14} />
-      </button>
-      <button
-        className={`${btn(quality === 'high')} w-auto px-2 text-[12px] font-semibold`}
-        onClick={() => setQuality(quality === 'high' ? 'eco' : 'high')}
-        aria-label="Toggle render quality"
-        title="Render quality"
-      >
-        {quality === 'high' ? 'HQ' : 'ECO'}
-      </button>
-    </div>
-  )
-}
+import StageChrome from '../components/lab/StageChrome'
+import ArrayStage from '../components/lab/ArrayStage'
+import SnapshotDiagram from '../components/diagram/SnapshotDiagram'
 
 function Toast() {
-  const toast = useLab((s) => s.toast)
+  const toast = useLab((state) => state.toast)
   return (
-    <div className="pointer-events-none absolute bottom-24 right-4 z-30">
+    <div className="pointer-events-none absolute right-3 top-[60px] z-30 md:right-5 md:top-2">
       <AnimatePresence>
         {toast && (
           <motion.div
             key={toast.at}
-            initial={{ opacity: 0, x: 24, scale: 0.96 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 16, scale: 0.97 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className={`panel flex items-center gap-2.5 px-3.5 py-2.5 text-[11.5px] shadow-[0_14px_40px_-10px_rgba(0,0,0,0.9)] ${
-              toast.kind === 'error' ? 'border-bad/40 text-bad' : 'border-acid/30 text-bone-dim'
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16 }}
+            role="status"
+            className={`flex w-max max-w-[calc(100vw-1.5rem)] items-center gap-2 border bg-[#0b0b0b] px-3 py-2 text-[12px] md:max-w-[340px] ${
+              toast.kind === 'error' ? 'border-bad/40 text-bad' : 'border-[var(--line-2)] text-bone-dim'
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${toast.kind === 'error' ? 'bg-bad' : 'bg-acid'}`} />
+            <span className={`h-1.5 w-1.5 shrink-0 ${toast.kind === 'error' ? 'bg-bad' : 'bg-mint'}`} />
             {toast.text}
           </motion.div>
         )}
@@ -96,149 +37,269 @@ function Toast() {
   )
 }
 
+/* ── the 2.5D stage ────────────────────────────────────────────────────── */
+
+function StageView({ editMode, selected, selectedLink, setSelectedLink, onSelect, onHover }) {
+  const snapshot = useLab((state) => state.snapshot)
+  const steps = useLab((state) => state.steps)
+  const entry = useLab((state) => state.entry)
+
+  return (
+    <div className="absolute inset-0 px-2 pb-[148px] pt-10 sm:px-5 md:px-9 md:pb-[152px] md:pt-8">
+      <SnapshotDiagram
+        snapshot={snapshot}
+        scene={entry.scene}
+        fitSteps={steps.length ? steps : [snapshot]}
+        editMode={editMode && entry.scene === 'graph'}
+        onNodeMove={(id, point) => {
+          const state = useLab.getState()
+          state.machine.moveNode(id, point.x, point.y, point.z)
+          state.setEditFocus(id)
+          state.syncMachine()
+        }}
+        onLinkSelect={(id) => setSelectedLink(id)}
+        selectedLink={selectedLink}
+        selected={selected}
+        onSelect={onSelect}
+        onHover={onHover}
+      />
+    </div>
+  )
+}
+
+/* ── hover-reveal edge rails ───────────────────────────────────────────── */
+
+function EdgeRail({ side, label, open, onOpen, onClose, width, children }) {
+  const closeTimer = useRef(null)
+
+  useEffect(() => () => clearTimeout(closeTimer.current), [])
+
+  const enter = () => {
+    clearTimeout(closeTimer.current)
+    onOpen()
+  }
+  const leave = () => {
+    clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(onClose, 220)
+  }
+
+  return (
+    <div
+      className={`absolute inset-y-0 z-30 flex ${side === 'left' ? 'left-0' : 'right-0 flex-row-reverse'}`}
+      onPointerEnter={enter}
+      onPointerLeave={leave}
+    >
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.aside
+            key={label}
+            initial={{ opacity: 0, x: side === 'left' ? -18 : 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: side === 'left' ? -12 : 12 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className={`relative h-full shrink-0 border-[var(--line)] bg-[#080808] ${
+              side === 'left' ? 'border-r' : 'border-l'
+            }`}
+            style={{ width }}
+            aria-label={label === 'LAB' ? 'Lab controls' : 'Notes'}
+          >
+            {children}
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      <button
+        type="button"
+        onClick={() => (open ? onClose() : onOpen())}
+        aria-expanded={open}
+        className={`relative flex h-full w-11 shrink-0 flex-col items-center justify-between border-[var(--line)] bg-[#070707] py-5 transition-colors hover:bg-[#0b0b0b] ${
+          side === 'left' ? 'border-r' : 'border-l'
+        }`}
+      >
+        <span className="mono-num text-[9px] text-faint">{side === 'left' ? '01' : '02'}</span>
+        <span
+          className="eyebrow text-[9px] text-muted transition-colors hover:text-bone"
+          style={{ writingMode: 'vertical-rl', transform: side === 'left' ? 'rotate(180deg)' : 'none' }}
+        >
+          {label}
+        </span>
+        <span
+          className={`grid h-5 w-5 place-items-center border transition-colors ${
+            open ? 'border-signal/50 text-signal' : 'border-[var(--line-2)] text-faint'
+          }`}
+          aria-hidden="true"
+        >
+          <span className="text-[11px] leading-none">{side === 'left' ? '›' : '‹'}</span>
+        </span>
+      </button>
+    </div>
+  )
+}
+
+/* ── the console ───────────────────────────────────────────────────────── */
+
 export default function Lab() {
-  const snapshot = useLab((s) => s.snapshot)
-  const entry = useLab((s) => s.entry)
-  const selected = useLab((s) => s.selected)
-  const index = useLab((s) => s.index)
-  const editMode = useLab((s) => s.editMode)
-  const setEditMode = useLab((s) => s.setEditMode)
-  const selectedLink = useLab((s) => s.selectedLink)
-  const setSelectedLink = useLab((s) => s.setSelectedLink)
-  const showInspectorPanel = useLab((s) => s.showInspectorPanel)
-  const frameToken = useLab((s) => s.frameToken)
-  const autoRotate = useLab((s) => s.autoRotate)
-  const quality = useLab((s) => s.quality)
-  const reduceMotion = useReducedMotion()
+  const entry = useLab((state) => state.entry)
+  const selected = useLab((state) => state.selected)
+  const editMode = useLab((state) => state.editMode)
+  const selectedLink = useLab((state) => state.selectedLink)
+  const setSelectedLink = useLab((state) => state.setSelectedLink)
+  const [panel, setPanel] = useState(null)
   const painting = useRef(false)
 
+  const togglePanel = useCallback((name) => {
+    setPanel((current) => (current === name ? null : name))
+  }, [])
+
+  const openFromTopbar = useCallback(
+    (name) => {
+      if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+        togglePanel(name)
+      } else {
+        useLab.getState().setMobilePanel(name === 'lab' ? 'ops' : 'info')
+      }
+    },
+    [togglePanel],
+  )
+
   const paintCell = useCallback((id) => {
-    const s = useLab.getState()
-    const [r, c] = String(id).split('_').map(Number)
-    if (!Number.isFinite(r) || !Number.isFinite(c)) return
-    if (s.brush === 'start') s.machine.setStart(r, c)
-    else if (s.brush === 'goal') s.machine.setGoal(r, c)
-    else s.machine.paint(r, c, s.brush)
-    s.paintCellRefresh()
+    const state = useLab.getState()
+    const [row, column] = String(id).split('_').map(Number)
+    if (!Number.isFinite(row) || !Number.isFinite(column)) return
+    if (state.brush === 'start') state.machine.setStart(row, column)
+    else if (state.brush === 'goal') state.machine.setGoal(row, column)
+    else state.machine.paint(row, column, state.brush)
+    state.paintCellRefresh()
   }, [])
 
   const onSelect = useCallback(
     (id) => {
-      const s = useLab.getState()
-      if (s.paintMode && s.entry.paintable) {
+      const state = useLab.getState()
+      if (state.paintMode && state.entry.paintable) {
+        painting.current = true
         paintCell(id)
         return
       }
-      s.setSelected(id === s.selected ? null : id)
+      state.setSelected(id === state.selected ? null : id)
     },
     [paintCell],
   )
 
   const onHover = useCallback(
     (id) => {
-      const s = useLab.getState()
-      if (painting.current && s.paintMode && s.entry.paintable && id && id.includes('_')) paintCell(id)
+      const state = useLab.getState()
+      if (painting.current && state.paintMode && state.entry.paintable && id?.includes('_')) paintCell(id)
     },
     [paintCell],
   )
 
   useEffect(() => {
-    const down = (e) => {
-      if (e.target?.tagName === 'CANVAS') painting.current = true
+    const up = () => {
+      painting.current = false
     }
-    const up = () => (painting.current = false)
-    window.addEventListener('pointerdown', down)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
     return () => {
-      window.removeEventListener('pointerdown', down)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
   }, [])
 
-  // keyboard transport
+  /* keyboard transport — ignored while typing, never steals a text field */
   useEffect(() => {
-    const onKey = (e) => {
-      const tag = e.target?.tagName
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
-      const s = useLab.getState()
-      switch (e.key) {
+    const onKey = (event) => {
+      const tag = event.target?.tagName
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const state = useLab.getState()
+
+      if (state.practice.on) {
+        if (event.key === 'Escape' || event.key === 'p') {
+          event.preventDefault()
+          state.togglePractice()
+        } else if (state.practice.q && !state.practice.review) {
+          if (['1', '2', '3', '4'].includes(event.key)) {
+            event.preventDefault()
+            if (!state.practice.checked) state.pickPractice(Number(event.key) - 1)
+          } else if (event.key === 'Enter') {
+            event.preventDefault()
+            if (!state.practice.checked) state.checkPractice()
+            else state.continuePractice()
+          }
+        }
+        return
+      }
+
+      switch (event.key) {
         case ' ':
-          e.preventDefault()
-          s.togglePlay()
+          event.preventDefault()
+          state.togglePlay()
           break
         case 'ArrowRight':
         case 'ArrowLeft':
-          e.preventDefault()
-          /* in graph edit mode the arrows nudge the focused node instead of stepping */
-          if (s.editMode && s.editFocus && s.entry.scene === 'graph') {
-            const n = s.machine.nodes.find((n) => n.id === s.editFocus)
-            if (n) {
-              const d = e.shiftKey ? 0.25 : 0.75
-              s.machine.moveNode(n.id, n.pos[0] + (e.key === 'ArrowRight' ? d : -d), n.pos[1], n.pos[2])
-              s.syncMachine()
+          event.preventDefault()
+          if (state.editMode && state.editFocus && state.entry.scene === 'graph') {
+            const node = state.machine.nodes.find((item) => item.id === state.editFocus)
+            if (node) {
+              const distance = event.shiftKey ? 0.25 : 0.75
+              state.machine.moveNode(
+                node.id,
+                node.pos[0] + (event.key === 'ArrowRight' ? distance : -distance),
+                node.pos[1],
+                node.pos[2],
+              )
+              state.syncMachine()
               break
             }
           }
-          s.stepBy(e.key === 'ArrowRight' ? 1 : -1)
-          break
-        case 'r':
-          s.restart()
-          break
-        case 'e':
-          s.jumpEnd()
-          break
-        case 'f':
-          s.frame()
-          break
-        case 'c':
-          s.toggleCode()
-          break
-        case 'i':
-          s.toggleInfo()
-          break
-        case 'p':
-          s.togglePractice()
-          break
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-          if (s.practice.on && s.practice.q && !s.practice.review) {
-            e.preventDefault()
-            if (!s.practice.checked) s.pickPractice(Number(e.key) - 1)
-          }
+          state.stepBy(event.key === 'ArrowRight' ? 1 : -1)
           break
         case 'ArrowUp':
         case 'ArrowDown':
-          if (s.editMode && s.editFocus && s.entry.scene === 'graph') {
-            e.preventDefault()
-            const n = s.machine.nodes.find((n) => n.id === s.editFocus)
-            if (n) {
-              const d = e.shiftKey ? 0.25 : 0.75
-              s.machine.moveNode(n.id, n.pos[0], n.pos[1], n.pos[2] + (e.key === 'ArrowDown' ? d : -d))
-              s.syncMachine()
+          if (state.editMode && state.editFocus && state.entry.scene === 'graph') {
+            event.preventDefault()
+            const node = state.machine.nodes.find((item) => item.id === state.editFocus)
+            if (node) {
+              const distance = event.shiftKey ? 0.25 : 0.75
+              state.machine.moveNode(node.id, node.pos[0], node.pos[1], node.pos[2] + (event.key === 'ArrowDown' ? distance : -distance))
+              state.syncMachine()
             }
           }
           break
+        case 'r':
+          state.restart()
+          break
+        case 'e':
+          state.jumpEnd()
+          break
+        case 'f':
+          state.frame()
+          break
+        case 'c':
+          state.setPanelTab('code')
+          setPanel('notes')
+          break
+        case 'i':
+          setPanel((current) => (current === 'notes' ? null : 'notes'))
+          break
+        case 'p':
+          state.togglePractice()
+          break
         case 'Delete':
         case 'Backspace':
-          if (s.selectedLink && s.entry.scene === 'graph') {
-            e.preventDefault()
-            s.machine.removeEdge(s.selectedLink)
-            s.setSelectedLink(null)
-            s.syncMachine()
+          if (state.selectedLink && state.entry.scene === 'graph') {
+            event.preventDefault()
+            state.machine.removeEdge(state.selectedLink)
+            state.setSelectedLink(null)
+            state.syncMachine()
           }
           break
         case 'Escape':
-          if (s.selectedLink) s.setSelectedLink(null)
-          else if (s.editMode) s.setEditMode(false)
-          break
-        case 'Enter':
-          if (s.practice.on && s.practice.q && !s.practice.review) {
-            e.preventDefault()
-            if (!s.practice.checked) s.checkPractice()
-            else s.continuePractice()
-          }
+          if (panel) setPanel(null)
+          else if (state.mobilePanel) state.setMobilePanel(null)
+          else if (state.selectedLink) state.setSelectedLink(null)
+          else if (state.editMode) state.setEditMode(false)
+          else if (state.selected) state.setSelected(null)
           break
         default:
           break
@@ -246,61 +307,59 @@ export default function Lab() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [panel])
+
+  const isArray = entry.scene === 'array'
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-ink-950 text-bone">
-      <Topbar />
-      <div className="flex min-h-0 flex-1">
-        <NavigationDock />
+      <Topbar panel={panel} onOpenLab={() => openFromTopbar('lab')} onOpenNotes={() => openFromTopbar('notes')} />
 
+      <div className="relative flex min-h-0 flex-1">
         <main className="relative min-w-0 flex-1">
-          <div className="absolute inset-0">
-            <Stage
-              frameIndex={index}
-              editMode={editMode && entry.scene === 'graph'}
-              onNodeMove={(id, pt) => {
-                useLab.getState().machine.moveNode(id, pt.x, pt.y, pt.z)
-                useLab.getState().setEditFocus(id)
-                useLab.getState().syncMachine()
-              }}
-              onLinkSelect={(id) => setSelectedLink(id)}
-              selectedLink={selectedLink}
-              snapshot={snapshot}
-              scene={entry.scene}
+          {isArray ? (
+            <ArrayStage />
+          ) : (
+            <StageView
+              editMode={editMode}
               selected={selected}
+              selectedLink={selectedLink}
+              setSelectedLink={setSelectedLink}
               onSelect={onSelect}
               onHover={onHover}
-              frameToken={frameToken}
-              autoRotate={autoRotate}
-              quality={quality}
             />
-          </div>
+          )}
 
+          <StageChrome />
           {entry.scene === 'graph' && <GraphEdit />}
-          <CodePanel />
-          <StageToggles />
           <PracticePanel />
           <Transport />
           <Toast />
-
-          <div className="pointer-events-none absolute right-4 top-[52px] z-10 hidden text-right text-[12px] leading-relaxed text-faint xl:block">
-            drag orbit · scroll zoom · click a node to target it
-            <br />
-            space play · ← → step · f frame · c code
-          </div>
         </main>
 
-        <motion.aside
-          aria-hidden={!showInspectorPanel}
-          inert={!showInspectorPanel}
-          initial={false}
-          animate={{ width: showInspectorPanel ? 320 : 0, opacity: showInspectorPanel ? 1 : 0 }}
-          transition={{ duration: reduceMotion ? 0.01 : 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className={`hidden shrink-0 overflow-hidden bg-ink-900 xl:block ${showInspectorPanel ? 'border-l border-[var(--line)]' : ''}`}
-        >
-          <div className="h-full w-[320px]"><Inspector /></div>
-        </motion.aside>
+        <div className="hidden lg:block">
+          <EdgeRail
+            side="left"
+            label="LAB"
+            open={panel === 'lab'}
+            onOpen={() => setPanel('lab')}
+            onClose={() => setPanel((current) => (current === 'lab' ? null : current))}
+            width="min(380px, calc(100vw - 8rem))"
+          >
+            <Sidebar onClose={() => setPanel(null)} onNavigate={() => setPanel(null)} />
+          </EdgeRail>
+
+          <EdgeRail
+            side="right"
+            label="NOTES"
+            open={panel === 'notes'}
+            onOpen={() => setPanel('notes')}
+            onClose={() => setPanel((current) => (current === 'notes' ? null : current))}
+            width="min(430px, calc(100vw - 8rem))"
+          >
+            <Inspector onClose={() => setPanel(null)} />
+          </EdgeRail>
+        </div>
       </div>
 
       <MobileDrawer />
@@ -309,39 +368,39 @@ export default function Lab() {
 }
 
 function MobileDrawer() {
-  const panel = useLab((s) => s.mobilePanel)
-  const setPanel = useLab((s) => s.setMobilePanel)
+  const panel = useLab((state) => state.mobilePanel)
+  const setPanel = useLab((state) => state.setMobilePanel)
   return (
     <AnimatePresence>
       {panel && (
-        <>
+        <div className="fixed inset-0 z-50 lg:hidden">
           <motion.button
             aria-label="Close panel"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setPanel(null)}
-            className="fixed inset-0 z-40 bg-ink-950/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-ink-950/80"
           />
           <motion.aside
             key={panel}
             initial={{ x: panel === 'ops' ? '-100%' : '100%' }}
             animate={{ x: 0 }}
             exit={{ x: panel === 'ops' ? '-100%' : '100%' }}
-            transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-            className={`fixed inset-y-0 z-50 w-[min(320px,86vw)] border-[var(--line)] bg-ink-900 ${
+            transition={{ type: 'spring', stiffness: 420, damping: 40 }}
+            className={`absolute inset-y-0 w-full border-[var(--line)] bg-[#080808] sm:w-[min(360px,92vw)] ${
               panel === 'ops' ? 'left-0 border-r' : 'right-0 border-l'
             }`}
+            role="dialog"
+            aria-label={panel === 'ops' ? 'Lab controls' : 'Notes'}
           >
-            <div className="flex h-12 items-center justify-between border-b border-[var(--line)] px-4">
-              <span className="label-xs">{panel === 'ops' ? 'operations' : 'inspector'}</span>
-              <button onClick={() => setPanel(null)} className="text-[13px] text-muted hover:text-bone">
-                close ✕
-              </button>
-            </div>
-            <div className="h-[calc(100%-3rem)]">{panel === 'ops' ? <OpsPanel /> : <Inspector />}</div>
+            {panel === 'ops' ? (
+              <Sidebar mobile onClose={() => setPanel(null)} onNavigate={() => setPanel(null)} />
+            ) : (
+              <Inspector onClose={() => setPanel(null)} />
+            )}
           </motion.aside>
-        </>
+        </div>
       )}
     </AnimatePresence>
   )

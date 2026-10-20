@@ -30,6 +30,10 @@ function checkSteps(t, run, label) {
     for (const n of st.nodes) {
       assert.ok(n.id && n.state && n.pos, `${label} frame ${i}: node ${n.id} needs id/state/pos`)
     }
+    /* one element may occupy exactly one slot per frame — a repeated id is a
+     * false state (a value in two places) and a React duplicate key. */
+    const ids = st.nodes.map((n) => n.id)
+    assert.equal(new Set(ids).size, ids.length, `${label} frame ${i}: duplicate node ids ${[...new Set(ids.filter((id, k) => ids.indexOf(id) !== k))].join(', ')}`)
     for (const l of st.links) {
       assert.ok(l.from && l.to, `${label} frame ${i}: link endpoints`)
     }
@@ -57,13 +61,20 @@ test('avl: inserts keep the tree balanced', () => {
 })
 
 /* ── sorting ──────────────────────────────────────────────────────────── */
+const SORT_SHAPES = [
+  ['random', () => randomArray(18, 90, mulberry(4))],
+  ['almost-sorted', () => almostSortedArray(16, 4, mulberry(7))],
+  ['reversed (equal keys)', () => reversedArray(15)],
+]
 for (const algo of ['bubble', 'selection', 'insertion', 'shell', 'merge', 'quick', 'heap']) {
   test(`sorting: ${algo} ends sorted`, () => {
-    const m = createSorter(randomArray(18, 90, mulberry(4)))
-    const steps = checkSteps(test, m[algo](), `sort.${algo}`)
-    assert.ok(steps.length > 1)
-    const arr = m.array
-    assert.deepEqual([...arr].sort((a, b) => a - b), arr, `${algo} leaves the array sorted`)
+    for (const [shape, build] of SORT_SHAPES) {
+      const m = createSorter(build())
+      const steps = checkSteps(test, m[algo](), `sort.${algo} · ${shape}`)
+      assert.ok(steps.length > 1)
+      const arr = m.array
+      assert.deepEqual([...arr].sort((a, b) => a - b), arr, `${algo} leaves the array sorted (${shape})`)
+    }
   })
 }
 
@@ -123,6 +134,30 @@ test('pathfinding: painting walls and moving endpoints', () => {
   assert.equal(m.setStart(cell[0], cell[1]), true, 'start can be re-dropped')
   assert.equal(m.setGoal(cell[0], cell[1]), false, 'goal cannot sit on start')
   checkSteps(test, m.astar(), 'pf.astar after edits')
+})
+
+test('pathfinding: the traced path is contiguous and keeps its endpoints', () => {
+  const m = createGrid(21, 15, 3)
+  for (const algo of ['bfs', 'astar', 'dijkstra']) {
+    const run = m[algo]()
+    assert.equal(run.ok, true, `${algo} finds a route on the default map`)
+    const { path } = run
+    assert.equal(path[0], m.start(), `${algo} path starts at the start cell`)
+    assert.equal(path.at(-1), m.end(), `${algo} path ends at the goal cell`)
+    for (let i = 1; i < path.length; i++) {
+      const [r0, c0] = path[i - 1].split('_').map(Number)
+      const [r1, c1] = path[i].split('_').map(Number)
+      assert.equal(Math.abs(r1 - r0) + Math.abs(c1 - c0), 1, `${algo} step ${i} is a 4-neighbour move (${path[i - 1]} → ${path[i]})`)
+    }
+    const last = run.steps.at(-1)
+    for (const id of path) {
+      const node = last.nodes.find((n) => n.id === id)
+      assert.ok(node, `${algo} final frame still contains ${id}`)
+      if (id === m.start()) assert.equal(node.state, 'start')
+      else if (id === m.end()) assert.equal(node.state, 'goal')
+      else assert.equal(node.state, 'path')
+    }
+  }
 })
 
 /* ── hashing ──────────────────────────────────────────────────────────── */

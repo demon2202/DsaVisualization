@@ -4,7 +4,7 @@
  * lands in, and every collision that follows.
  */
 
-const BUCKET_X = 2.15
+const BUCKET_X = 2.4
 const CHAIN_Y = -1.5
 
 let seq = 0
@@ -20,19 +20,26 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
   const bucketX = (i) => (i - (capacity - 1) / 2) * BUCKET_X
 
   function snap(o = {}) {
-    const { states = {}, linkStates = {}, marks = {} } = o
+    const { states = {}, linkStates = {} } = o
     const nodes = []
     const links = []
 
     for (let i = 0; i < capacity; i++) {
       const bucketId = `bucket_${i}`
+      /*
+       * The bucket is a slot, not a label. Its index sits underneath like an
+       * array index, and the slot itself holds the stored key (probing) or
+       * stays open as a chain head (chaining). That keeps index and data from
+       * competing for the same surface.
+       */
       nodes.push({
         id: bucketId,
-        value: i,
+        value: mode === 'chaining' ? null : buckets[i][0]?.key ?? null,
         pos: [bucketX(i), 2.6, 0],
         state: states[bucketId] || 'base',
-        plate: { w: BUCKET_X * 0.82, h: 0.42, d: 0.9 },
-        sub: mode === 'chaining' ? `bucket ${i}` : `slot ${i}`,
+        plate: { w: BUCKET_X * 0.82, h: 0.7, d: 1.06 },
+        inset: true,
+        sub: String(i),
       })
       if (mode === 'chaining') {
         buckets[i].forEach((en, k) => {
@@ -50,11 +57,6 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
             state: linkStates[en.id] || 'tree',
           })
         })
-      } else {
-        const en = buckets[i][0]
-        if (en) {
-          nodes.push({ id: en.id, value: en.key, pos: [bucketX(i), 2.6, 0], state: states[en.id] || 'visited', overlay: true })
-        }
       }
     }
 
@@ -103,14 +105,14 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
         steps.push(
           snap({
             states: { [`bucket_${b}`]: 'probe', ...Object.fromEntries(buckets[b].map((e) => [e.id, 'reject'])) },
-            note: `Bucket ${b} already holds ${buckets[b].map((e) => e.key).join(', ')} — a collision. Chaining does not move anything: it just appends to this bucket's list.`,
+            note: `Bucket ${b} already holds ${buckets[b].map((e) => e.key).join(', ')}: a collision. Chaining appends to this bucket's list.`,
             code: ['h.collision', 'h.chain'],
             banner: 'COLLISION',
             aux: { kind: 'math', title: 'chain length', items: buckets[b].map((e) => ({ value: String(e.key), state: 'reject' })).concat([{ value: `+${k}`, state: 'insert' }]) },
           }),
         )
       } else {
-        steps.push(snap({ states: { [`bucket_${b}`]: 'probe' }, note: `Bucket ${b} is empty — no collision, straight in.`, code: ['h.empty'] }))
+        steps.push(snap({ states: { [`bucket_${b}`]: 'probe' }, note: `Bucket ${b} is empty. Store the key.`, code: ['h.empty'] }))
       }
       const en = { id: uid(), key: k }
       buckets[b].push(en)
@@ -147,7 +149,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
       steps.push(
         snap({
           states: { [en.id]: 'insert', [`bucket_${i}`]: 'found' },
-          note: `Slot ${i} was free — ${k} is stored there after ${probes} probe${probes === 1 ? '' : 's'}. Notice it is no longer at its hash index, which is why lookups must re-walk the probe sequence.`,
+          note: `Slot ${i} was free. ${k} is stored there after ${probes} probe${probes === 1 ? '' : 's'}; lookups must repeat the probe sequence.`,
           code: ['h.storeProbe'],
           banner: 'STORED',
           focus: [bucketX(i), 2.6, 0],
@@ -163,7 +165,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
     if (!Number.isFinite(k)) return { ok: false, error: 'Enter a number', steps }
     const b = hash(k)
     probes = 0
-    steps.push(snap({ states: { [`bucket_${b}`]: 'probe' }, note: `Look up ${k}: hash(${k}) = ${b}. Jump straight to that bucket — no scanning of the table.`, code: ['h.lookup'], banner: `h(${k}) = ${b}`, focus: [bucketX(b), 2.6, 0] }))
+    steps.push(snap({ states: { [`bucket_${b}`]: 'probe' }, note: `Look up ${k}: hash(${k}) = ${b}. Jump to that bucket; no table scan.`, code: ['h.lookup'], banner: `h(${k}) = ${b}`, focus: [bucketX(b), 2.6, 0] }))
 
     if (mode === 'chaining') {
       const chain = buckets[b]
@@ -188,7 +190,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
         probes++
         const en = buckets[i][0]
         if (!en) {
-          steps.push(snap({ states: { [`bucket_${i}`]: 'reject' }, note: `Slot ${i} is empty — since probing never leaves gaps inside a cluster, ${k} cannot be in the table.`, code: ['h.emptyMiss'], banner: 'MISS' }))
+          steps.push(snap({ states: { [`bucket_${i}`]: 'reject' }, note: `Slot ${i} is empty. Probing leaves no gaps inside a cluster, so ${k} is not in the table.`, code: ['h.emptyMiss'], banner: 'MISS' }))
           return { ok: false, steps, summary: `${k} not found` }
         }
         const hit = en.key === k
@@ -197,7 +199,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
         i = (i + 1) % capacity
       }
     }
-    steps.push(snap({ note: `${k} is not in the table. Cost was still O(1) amortised — proportional to the chain length, not the table size.`, code: ['h.miss'], banner: 'MISS' }))
+    steps.push(snap({ note: `${k} is not in the table. Lookup cost depends on the chain or probe length, not the table size.`, code: ['h.miss'], banner: 'MISS' }))
     return { ok: false, steps, summary: `${k} not found` }
   }
 
@@ -209,7 +211,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
     const idx = buckets[b].findIndex((e) => e.key === k)
     if (idx === -1) return { ok: false, error: `${k} is not stored`, steps }
     const en = buckets[b][idx]
-    steps.push(snap({ states: { [en.id]: 'remove', [`bucket_${b}`]: 'probe' }, note: `Found ${k} in bucket ${b}. Removing it ${mode === 'chaining' ? 'unlinks one node from the chain' : 'leaves a tombstone — probing relies on contiguous clusters, so a real gap would break future lookups'}.`, code: ['h.del'], banner: 'DELETE' }))
+    steps.push(snap({ states: { [en.id]: 'remove', [`bucket_${b}`]: 'probe' }, note: `Found ${k} in bucket ${b}. ${mode === 'chaining' ? 'Unlink it from the chain.' : 'Leave a tombstone; probing needs the cluster intact.'}`, code: ['h.del'], banner: 'DELETE' }))
     buckets[b].splice(idx, 1)
     entries = entries.filter((e) => e.id !== en.id)
     steps.push(snap({ states: { [`bucket_${b}`]: 'found' }, note: `${k} gone. Load factor drops to ${(entries.length / capacity).toFixed(2)}.`, code: ['h.delDone'], banner: 'REMOVED' }))
@@ -228,7 +230,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
       const before = (keys.length / capacity).toFixed(2)
       steps.push(
         snap({
-          note: `Load factor ${before}. Past ~0.75 chains get long, so allocate ${oldCap * 2 + 1} buckets and rehash every key — indices depend on capacity, so nothing can be moved lazily.`,
+          note: `Load factor ${before}. Past ~0.75 ${mode === 'chaining' ? 'chains get long' : 'clusters grow'}, so allocate ${oldCap * 2 + 1} buckets and rehash every key. Indices depend on capacity.`,
           code: ['h.resize'],
           banner: 'REHASH',
         }),
@@ -236,7 +238,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
       capacity = oldCap * 2 + 1
       buckets = Array.from({ length: capacity }, () => [])
       entries = []
-      steps.push(snap({ note: `Fresh table: ${capacity} empty buckets. Every stored key must find its new home.`, code: ['h.resize'] }))
+      steps.push(snap({ note: `Fresh table: ${capacity} empty buckets. Rehash every stored key.`, code: ['h.resize'] }))
       for (const k of keys) {
         const b = hash(k)
         let slot = b
@@ -250,7 +252,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
         steps.push(
           snap({
             states: { [`bucket_${b}`]: 'probe', [en.id]: 'insert' },
-            note: `${k} mod ${capacity} = ${b}${slot !== b ? ` (probe to ${slot})` : ''} — same key, new home.`,
+            note: `${k} mod ${capacity} = ${b}${slot !== b ? `; probe to ${slot}` : ''}. Same key, new bucket.`,
             code: ['h.resize'],
             focus: [bucketX(b), 2.6, 0],
           }),
@@ -258,7 +260,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
       }
       steps.push(
         snap({
-          note: `Rehash complete: ${keys.length} keys in ${capacity} buckets. Load factor ${before} → ${(keys.length / capacity).toFixed(2)}, and with it the expected chain length.`,
+          note: `Rehash complete: ${keys.length} keys in ${capacity} buckets. Load factor ${before} → ${(keys.length / capacity).toFixed(2)}.`,
           code: ['h.resize'],
           banner: 'REHASHED',
         }),
@@ -268,7 +270,7 @@ export function createHash({ capacity = 11, mode = 'chaining' } = {}) {
     get capacity() {
       return capacity
     },
-    snapshot: () => snap({ note: 'Idle — insert keys and watch the hash function route them.' }),
+    snapshot: () => snap({ note: 'Insert a key.' }),
     insert,
     find,
     remove,

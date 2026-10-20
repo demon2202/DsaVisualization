@@ -19,9 +19,10 @@ export function createHeap({ max = true } = {}) {
     const inLevel = i - (2 ** lvl - 1)
     const count = Math.min(2 ** lvl, Math.max(items.length - (2 ** lvl - 1), 1))
     const width = TREE_W / Math.max(count, 1)
-    return [(inLevel + 0.5) * width - TREE_W / 2, 4.6 - lvl * LEVEL_Y, lvl * 0.55]
+    return [(inLevel + 0.5) * width - TREE_W / 2, 4.4 - lvl * LEVEL_Y, lvl * 0.35]
   }
-  const arrPos = (i) => [(i - (Math.max(items.length, 10) - 1) / 2) * 0.95, -6.6, 0]
+  const arrPos = (i) => [(i - (Math.max(items.length, 8) - 1) / 2) * 0.95, -4.55, 0]
+  const arrExtent = () => ((Math.max(items.length, 8) - 1) / 2) * 0.95 + 0.48
 
   function snap(o = {}) {
     const { states = {}, arrStates = {}, links = {} } = o
@@ -37,7 +38,8 @@ export function createHeap({ max = true } = {}) {
       value: it.value,
       pos: arrPos(i),
       state: arrStates[it.id] || states[it.id] || 'dim',
-      tile: { w: 0.82, h: 0.62, d: 0.62 },
+      tile: { w: 0.86, h: 0.7, d: 0.62 },
+      inset: true,
       sub: String(i),
     }))
     const edges = []
@@ -54,12 +56,12 @@ export function createHeap({ max = true } = {}) {
       code: o.code || [],
       banner: o.banner || null,
       focus: o.focus || null,
-      aux: { kind: 'arrayrow', y: -6.6, ...(o.aux || {}) },
+      aux: { kind: 'arrayrow', y: -4.55, label: 'array', x0: -arrExtent(), x1: arrExtent(), ...(o.aux || {}) },
       stats: { size: items.length, root: items[0]?.value ?? null, levels: items.length ? levelOf(items.length - 1) + 1 : 0, ...(o.statExtra || {}) },
     }
   }
 
-  function siftUp(i, steps, codeBase) {
+  function siftUp(i, steps, _codeBase) {
     while (i > 0) {
       const p = Math.floor((i - 1) / 2)
       if (!better(items[i].value, items[p].value)) {
@@ -73,7 +75,7 @@ export function createHeap({ max = true } = {}) {
     steps.push(snap({ states: { [items[0].id]: 'found' }, note: `Reached the root — ${items[0].value} is now the ${max ? 'maximum' : 'minimum'}.`, code: ['hu.root'] }))
   }
 
-  function siftDown(i, steps, codeBase) {
+  function siftDown(i, steps, _codeBase) {
     const n = items.length
     while (true) {
       const l = 2 * i + 1
@@ -106,7 +108,7 @@ export function createHeap({ max = true } = {}) {
     if (!Number.isFinite(v)) return { ok: false, error: 'Enter a number', steps }
     const it = { id: uid(), value: v }
     items.push(it)
-    steps.push(snap({ states: { [it.id]: 'insert' }, arrStates: { [it.id]: 'insert' }, note: `Place ${v} at the end of the array (index ${items.length - 1}). A heap is a complete binary tree, so new elements always go to the last free slot — that keeps it perfectly balanced.`, code: ['hp.place'], banner: 'INSERT', focus: posOf(items.length - 1) }))
+    steps.push(snap({ states: { [it.id]: 'insert' }, arrStates: { [it.id]: 'insert' }, note: `Place ${v} at the end of the array (index ${items.length - 1}). New elements go to the last slot, keeping the tree complete.`, code: ['hp.place'], banner: 'INSERT', focus: posOf(items.length - 1) }))
     siftUp(items.length - 1, steps, 2)
     steps.push(snap({ note: `Heap holds ${items.length} values; the ${max ? 'max' : 'min'} is ${items[0].value}.`, code: ['hp.done'], banner: `${max ? 'MAX' : 'MIN'} = ${items[0].value}` }))
     return { ok: true, steps, summary: `push(${v}) · ${max ? 'max' : 'min'} ${items[0].value}` }
@@ -117,25 +119,25 @@ export function createHeap({ max = true } = {}) {
     if (!items.length) return { ok: false, error: 'Heap is empty', steps }
     const top = items[0]
     const last = items[items.length - 1]
-    steps.push(snap({ states: { [top.id]: 'remove' }, note: `extract-${max ? 'max' : 'min'}() takes the root (${top.value}). The hole it leaves must be filled without breaking the shape.`, code: ['hx.take'], banner: 'EXTRACT', focus: posOf(0) }))
+    steps.push(snap({ states: { [top.id]: 'remove' }, note: `extract-${max ? 'max' : 'min'}() takes the root (${top.value}). Fill the root without breaking the shape.`, code: ['hx.take'], banner: 'EXTRACT', focus: posOf(0) }))
     if (items.length === 1) {
       items.pop()
       steps.push(snap({ note: `That was the only element — heap is now empty.`, code: ['hx.only'] }))
       return { ok: true, steps, summary: `pop() → ${top.value}`, value: top.value }
     }
-    steps.push(snap({ states: { [last.id]: 'swap', [top.id]: 'remove' }, note: `Move the last element (${last.value}) into the root slot. Shape stays complete, but the heap property is almost certainly broken now.`, code: ['hx.last'], banner: 'LAST → ROOT' }))
+    steps.push(snap({ states: { [last.id]: 'swap', [top.id]: 'remove' }, note: `Move the last element (${last.value}) into the root. The shape stays complete; the heap property may now be broken.`, code: ['hx.last'], banner: 'LAST → ROOT' }))
     items[0] = last
     items.pop()
     steps.push(snap({ states: { [items[0].id]: 'probe' }, arrStates: { [items[0].id]: 'probe' }, note: `Root now holds ${items[0].value}. Sift it down until it beats both children.`, code: ['hx.sift'], focus: posOf(0) }))
     siftDown(0, steps, 8)
-    steps.push(snap({ note: `Removed ${top.value}. New ${max ? 'max' : 'min'} is ${items[0]?.value ?? '—'}; ${items.length} values left. Doing this n times is exactly how heapsort works.`, code: ['hx.done'], banner: `${max ? 'MAX' : 'MIN'} = ${items[0]?.value ?? '—'}` }))
+    steps.push(snap({ note: `Removed ${top.value}. New ${max ? 'max' : 'min'} is ${items[0]?.value ?? '—'}; ${items.length} values left.`, code: ['hx.done'], banner: `${max ? 'MAX' : 'MIN'} = ${items[0]?.value ?? '—'}` }))
     return { ok: true, steps, summary: `pop() → ${top.value}`, value: top.value }
   }
 
   function peek() {
     const steps = []
     if (!items.length) return { ok: false, error: 'Heap is empty', steps }
-    steps.push(snap({ states: { [items[0].id]: 'probe' }, note: `The root is always the ${max ? 'maximum' : 'minimum'} — reading it is O(1), which is the whole point of a heap. Priority queues are built on this.`, code: ['hk.root'], banner: `${items[0].value}`, focus: posOf(0) }))
+    steps.push(snap({ states: { [items[0].id]: 'probe' }, note: `The root is the ${max ? 'maximum' : 'minimum'}; reading it is O(1).`, code: ['hk.root'], banner: `${items[0].value}`, focus: posOf(0) }))
     return { ok: true, steps, summary: `peek() → ${items[0].value}` }
   }
 
@@ -143,12 +145,12 @@ export function createHeap({ max = true } = {}) {
     const steps = []
     if (!Array.isArray(values) || values.length === 0) return { ok: false, error: 'Heapify needs an array of numbers', steps }
     items = values.map((v) => ({ id: uid(), value: Number(v) }))
-    steps.push(snap({ note: `Floyd's build-heap: start from the last parent (index ${Math.floor((items.length - 1) / 2)}) and sift each one down. Sifting from the bottom up is what makes this O(n), not O(n log n).`, code: ['hb.intro'], banner: 'BUILD' }))
+    steps.push(snap({ note: `Floyd's build-heap: start at the last parent (index ${Math.floor((items.length - 1) / 2)}) and sift each parent down. Building from the bottom up is O(n), not O(n log n).`, code: ['hb.intro'], banner: 'BUILD' }))
     for (let i = Math.floor((items.length - 1) / 2); i >= 0; i--) {
       steps.push(snap({ states: { [items[i].id]: 'probe' }, note: `Sift down index ${i} (${items[i].value}). Indices above it are already valid heaps.`, code: ['hb.step'], focus: posOf(i) }))
       siftDown(i, steps, 18)
     }
-    steps.push(snap({ states: { [items[0].id]: 'found' }, note: `Heap built in linear time: every parent is ${max ? '≥' : '≤'} its children. Root = ${items[0]?.value}.`, code: ['hb.done'], banner: 'HEAPIFIED' }))
+    steps.push(snap({ states: { [items[0].id]: 'found' }, note: `Heap built in O(n). Every parent is ${max ? '≥' : '≤'} its children; root = ${items[0]?.value}.`, code: ['hb.done'], banner: 'HEAPIFIED' }))
     return { ok: true, steps, summary: `heapified ${items.length} values` }
   }
 
@@ -157,7 +159,7 @@ export function createHeap({ max = true } = {}) {
     get values() {
       return items.map((i) => i.value)
     },
-    snapshot: () => snap({ note: 'Idle — push values, or heapify an array in one go.' }),
+    snapshot: () => snap({ note: 'Push a value, or heapify an array.' }),
     push,
     pop,
     peek,

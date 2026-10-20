@@ -19,63 +19,135 @@ function mulberry32(a) {
 
 export function generateGraph(nodeCount = 14, seed = 7) {
   const rng = mulberry32(seed)
+  const count = Math.max(3, Math.min(26, nodeCount))
   const nodes = []
   const R = 9.5
-  for (let i = 0; i < nodeCount; i++) {
-    const a = (i / nodeCount) * Math.PI * 2 + (rng() - 0.5) * 0.5
-    const r = R * (0.45 + rng() * 0.62)
+
+  /* a golden-angle spiral is an even, deterministic starting arrangement */
+  const pts = []
+  for (let i = 0; i < count; i++) {
+    const a = i * 2.399963229728653
+    const r = Math.sqrt((i + 0.6) / count) * R
+    pts.push({ x: Math.cos(a) * r, z: Math.sin(a) * r })
+  }
+
+  const seen = new Set()
+  const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`)
+  const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
+  const links = []
+
+  /* connect each point to its nearest neighbour, then add secondary edges */
+  for (let i = 0; i < count; i++) {
+    const near = pts
+      .map((p, j) => ({ j, d: dist2(pts[i], p) }))
+      .filter((c) => c.j !== i)
+      .sort((a, b) => a.d - b.d)
+    for (const c of near.slice(0, 2)) {
+      const k = pairKey(i, c.j)
+      if (seen.has(k)) continue
+      seen.add(k)
+      links.push({ i, j: c.j })
+    }
+  }
+  const extra = Math.floor(count * 0.45)
+  for (let e = 0; e < extra; e++) {
+    const i = Math.floor(rng() * count)
+    const j = Math.floor(rng() * count)
+    if (i === j) continue
+    const k = pairKey(i, j)
+    if (seen.has(k)) continue
+    seen.add(k)
+    links.push({ i, j })
+  }
+
+  /* Fruchterman–Reingold in the x/z plane, then a collision pass. The graph
+     is read as a plan, so it stays flat; a shallow y jitter only catches the
+     light. Deterministic for a given seed. */
+  const area = (R * 2.05) ** 2
+  const k = Math.sqrt(area / count)
+  let temp = R * 0.9
+  const disp = pts.map(() => ({ x: 0, z: 0 }))
+  for (let iter = 0; iter < 420; iter++) {
+    for (const d of disp) {
+      d.x = 0
+      d.z = 0
+    }
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        let dx = pts[i].x - pts[j].x
+        let dz = pts[i].z - pts[j].z
+        let d = Math.hypot(dx, dz) || 0.01
+        if (d < 0.2) {
+          dx += (rng() - 0.5) * 0.4
+          dz += (rng() - 0.5) * 0.4
+          d = Math.hypot(dx, dz) || 0.2
+        }
+        const f = (k * k) / d
+        disp[i].x += (dx / d) * f
+        disp[i].z += (dz / d) * f
+        disp[j].x -= (dx / d) * f
+        disp[j].z -= (dz / d) * f
+      }
+    }
+    for (const l of links) {
+      let dx = pts[l.i].x - pts[l.j].x
+      let dz = pts[l.i].z - pts[l.j].z
+      const d = Math.hypot(dx, dz) || 0.01
+      const f = (d * d) / k
+      disp[l.i].x -= (dx / d) * f
+      disp[l.i].z -= (dz / d) * f
+      disp[l.j].x += (dx / d) * f
+      disp[l.j].z += (dz / d) * f
+    }
+    for (let i = 0; i < count; i++) {
+      const d = Math.hypot(disp[i].x, disp[i].z) || 1
+      pts[i].x += (disp[i].x / d) * Math.min(d, temp)
+      pts[i].z += (disp[i].z / d) * Math.min(d, temp)
+    }
+    temp = Math.max(0.12, temp * 0.985)
+  }
+
+  /* enforce a readable minimum gap between node bodies */
+  const MIN = 3.1
+  for (let pass = 0; pass < 90; pass++) {
+    let moved = false
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        const dx = pts[i].x - pts[j].x
+        const dz = pts[i].z - pts[j].z
+        const d = Math.hypot(dx, dz) || 0.001
+        if (d >= MIN) continue
+        moved = true
+        const push = (MIN - d) * 0.52
+        pts[i].x += (dx / d) * push
+        pts[i].z += (dz / d) * push
+        pts[j].x -= (dx / d) * push
+        pts[j].z -= (dz / d) * push
+      }
+    }
+    if (!moved) break
+  }
+
+  /* normalise into a comfortable disc and add the shallow depth */
+  const cx = pts.reduce((a, p) => a + p.x, 0) / count
+  const cz = pts.reduce((a, p) => a + p.z, 0) / count
+  const maxR = Math.max(...pts.map((p) => Math.hypot(p.x - cx, p.z - cz)), 1)
+  for (let i = 0; i < count; i++) {
+    const scale = Math.min(1, R / maxR)
     nodes.push({
       id: uid(),
       value: String.fromCharCode(65 + (i % 26)),
-      pos: [Math.cos(a) * r, (rng() - 0.5) * 3.2, Math.sin(a) * r],
+      pos: [(pts[i].x - cx) * scale * 1.02, 0, (pts[i].z - cz) * scale * 1.02],
     })
   }
-  // connect each node to its 2 nearest neighbours, then sprinkle extra edges
-  const edges = []
-  const seen = new Set()
-  const key = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`)
-  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])
 
-  for (let i = 0; i < nodes.length; i++) {
-    const cand = nodes
-      .map((n, j) => ({ j, d: dist(nodes[i].pos, n.pos) }))
-      .filter((c) => c.j !== i)
-      .sort((a, b) => a.d - b.d)
-    for (const c of cand.slice(0, 2)) {
-      const k = key(nodes[i].id, nodes[c.j].id)
-      if (seen.has(k)) continue
-      seen.add(k)
-      edges.push({ id: k, from: nodes[i].id, to: nodes[c.j].id, weight: Math.max(1, Math.round(c.d)) })
-    }
-  }
-  const extra = Math.floor(nodeCount * 0.5)
-  for (let e = 0; e < extra; e++) {
-    const i = Math.floor(rng() * nodes.length)
-    const j = Math.floor(rng() * nodes.length)
-    if (i === j) continue
-    const k = key(nodes[i].id, nodes[j].id)
-    if (seen.has(k)) continue
-    seen.add(k)
-    edges.push({ id: k, from: nodes[i].id, to: nodes[j].id, weight: Math.max(1, Math.round(dist(nodes[i].pos, nodes[j].pos))) })
-  }
+  const edges = links.map((l) => {
+    const a = nodes[l.i]
+    const b = nodes[l.j]
+    const d = Math.hypot(a.pos[0] - b.pos[0], a.pos[2] - b.pos[2])
+    return { id: pairKey(a.id, b.id), from: a.id, to: b.id, weight: Math.max(1, Math.round(d * 0.72)) }
+  })
 
-  // relax overlaps
-  for (let pass = 0; pass < 60; pass++) {
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const d = dist(nodes[i].pos, nodes[j].pos)
-        if (d < 3.4) {
-          const push = (3.4 - d) / 2
-          const dx = (nodes[i].pos[0] - nodes[j].pos[0]) / (d || 1)
-          const dz = (nodes[i].pos[2] - nodes[j].pos[2]) / (d || 1)
-          nodes[i].pos[0] += dx * push
-          nodes[i].pos[2] += dz * push
-          nodes[j].pos[0] -= dx * push
-          nodes[j].pos[2] -= dz * push
-        }
-      }
-    }
-  }
   return { nodes, edges }
 }
 
@@ -128,7 +200,7 @@ export function createGraph(g = generateGraph()) {
     const queue = [startId]
     const parent = new Map()
     const linkStates = {}
-    steps.push(snap({ states: { [startId]: 'found' }, note: `Start at ${labelOf(startId)}. BFS keeps a queue and always expands the oldest unvisited node — that is what makes it find shortest paths in unweighted graphs.`, code: ['bfs.init'], banner: 'SOURCE' }))
+    steps.push(snap({ states: { [startId]: 'found' }, note: `Start at ${labelOf(startId)}. BFS expands the oldest unvisited node; on unweighted graphs, first visit is shortest.`, code: ['bfs.init'], banner: 'SOURCE' }))
 
     while (queue.length) {
       const cur = queue.shift()
@@ -165,7 +237,7 @@ export function createGraph(g = generateGraph()) {
       }
     }
     const finalStates = Object.fromEntries([...visited].map((id) => [id, 'sorted']))
-    steps.push(snap({ states: finalStates, linkStates, note: `BFS complete. Visit order: ${order.map(labelOf).join(' → ')}. Because it expands in rings, the first time a node is reached is via a shortest path.`, code: ['bfs.done'], banner: `${visited.size}/${nodes.length} REACHED`, aux: { kind: 'sequence', title: 'visit order', items: order.map((id, i) => ({ value: labelOf(id), state: 'sorted', index: i })) } }))
+    steps.push(snap({ states: finalStates, linkStates, note: `BFS complete. Visit order: ${order.map(labelOf).join(' → ')}. The search expands in rings, so each first visit is a shortest path.`, code: ['bfs.done'], banner: `${visited.size}/${nodes.length} REACHED`, aux: { kind: 'sequence', title: 'visit order', items: order.map((id, i) => ({ value: labelOf(id), state: 'sorted', index: i })) } }))
     return { ok: true, steps, summary: `BFS from ${labelOf(startId)} · ${visited.size} nodes`, output: order.map(labelOf) }
   }
 
@@ -177,12 +249,12 @@ export function createGraph(g = generateGraph()) {
     const order = []
     const stack = [startId]
     const linkStates = {}
-    steps.push(snap({ states: { [startId]: 'found' }, note: `Start at ${labelOf(startId)}. DFS dives as deep as it can before backtracking — here it is driven by an explicit stack.`, code: ['dfs.init'], banner: 'SOURCE' }))
+    steps.push(snap({ states: { [startId]: 'found' }, note: `Start at ${labelOf(startId)}. DFS goes deep before backtracking, using an explicit stack.`, code: ['dfs.init'], banner: 'SOURCE' }))
 
     while (stack.length) {
       const cur = stack.pop()
       if (visited.has(cur)) {
-        steps.push(snap({ states: Object.fromEntries([...visited].map((id) => [id, 'visited'])), linkStates, note: `${labelOf(cur)} was already visited when we popped it — skip. This is the standard lazy-deletion DFS.`, code: ['dfs.skip'], aux: { kind: 'stack', title: 'stack', items: stack.map((id) => ({ value: labelOf(id), state: 'frontier' })) } }))
+        steps.push(snap({ states: Object.fromEntries([...visited].map((id) => [id, 'visited'])), linkStates, note: `${labelOf(cur)} was already visited. Skip it.`, code: ['dfs.skip'], aux: { kind: 'stack', title: 'stack', items: stack.map((id) => ({ value: labelOf(id), state: 'frontier' })) } }))
         continue
       }
       visited.add(cur)
@@ -193,7 +265,7 @@ export function createGraph(g = generateGraph()) {
         snap({
           states,
           linkStates,
-          note: `Pop ${labelOf(cur)} and mark it visited — the ${order.length}${['th', 'st', 'nd', 'rd'][Math.min(3, order.length % 100 > 3 ? 0 : order.length % 10)] || 'th'} node in DFS order.`,
+          note: `Pop ${labelOf(cur)} and mark it visited: node ${order.length} in DFS order.`,
           code: ['dfs.visit'],
           aux: { kind: 'stack', title: 'stack', items: stack.map((id) => ({ value: labelOf(id), state: 'frontier' })) },
           focus: focusOf(cur),
@@ -216,7 +288,7 @@ export function createGraph(g = generateGraph()) {
         )
       }
     }
-    steps.push(snap({ states: Object.fromEntries([...visited].map((id) => [id, 'sorted'])), linkStates, note: `DFS complete: ${order.map(labelOf).join(' → ')}. Notice how different this is from BFS on the same graph — DFS goes deep, BFS goes wide.`, code: ['dfs.done'], banner: `${visited.size}/${nodes.length} REACHED`, aux: { kind: 'sequence', title: 'visit order', items: order.map((id) => ({ value: labelOf(id), state: 'sorted' })) } }))
+    steps.push(snap({ states: Object.fromEntries([...visited].map((id) => [id, 'sorted'])), linkStates, note: `DFS complete: ${order.map(labelOf).join(' → ')}. DFS goes deep; BFS goes wide.`, code: ['dfs.done'], banner: `${visited.size}/${nodes.length} REACHED`, aux: { kind: 'sequence', title: 'visit order', items: order.map((id) => ({ value: labelOf(id), state: 'sorted' })) } }))
     return { ok: true, steps, summary: `DFS from ${labelOf(startId)} · ${visited.size} nodes`, output: order.map(labelOf) }
   }
 
@@ -249,7 +321,7 @@ export function createGraph(g = generateGraph()) {
           states,
           linkStates,
           marks: { dist: Object.fromEntries(nodes.map((n) => [n.id, dist.get(n.id) === Infinity ? null : dist.get(n.id)])) },
-          note: `Smallest unsettled distance is ${labelOf(cur)} at ${best}. Lock it — with non-negative weights this value can never improve.`,
+          note: `Smallest unsettled distance: ${labelOf(cur)} at ${best}. With non-negative weights, this distance is final.`,
           code: ['dij.pick', 'dij.lock'],
           banner: `LOCK ${labelOf(cur)} = ${best}`,
           focus: focusOf(cur),
@@ -357,7 +429,7 @@ export function createGraph(g = generateGraph()) {
     get edges() {
       return edges
     },
-    snapshot: () => snap({ note: 'Idle — choose a start node and an algorithm.' }),
+    snapshot: () => snap({ note: 'Choose a start node and an algorithm.' }),
     bfs,
     dfs,
     dijkstra,

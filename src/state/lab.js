@@ -103,7 +103,10 @@ export const useLab = create((set, get) => {
     showCode: true,
     showInfo: false,
     showInspectorPanel: true,
-    autoRotate: readPrefs().autoRotate ?? !prefersReduced(),
+    panelTab: 'now',
+    setPanelTab: (panelTab) => set({ panelTab, showInspectorPanel: true }),
+    /* orbit is opt-in: idle camera drift is noise unless the reader asks */
+    autoRotate: readPrefs().autoRotate ?? false,
     paintMode: false,
     editMode: false,
     selectedLink: null,
@@ -136,7 +139,7 @@ export const useLab = create((set, get) => {
         return
       }
       if (!s.steps.length) {
-        get().toastIt('info', 'Run an operation first — practice quizzes you on what happens next')
+        get().toastIt('info', 'Run an operation first.')
         return
       }
       set({
@@ -206,7 +209,7 @@ export const useLab = create((set, get) => {
       if (!s.practice.on) return
       const j = nextDecisionFrame(s.steps, s.index + 1, { scene: s.entry.scene, lines: s.practiceLines() }, s.index + 4)
       if (j === -1) {
-        get().toastIt('ok', `Session complete — ${s.practice.first} first-try, ${s.practice.eventual} eventual, ${s.practice.wrong} missed`)
+        get().toastIt('ok', `Practice complete: ${s.practice.first} first try, ${s.practice.eventual} eventual, ${s.practice.wrong} missed`)
         set({ practice: { ...s.practice, on: false, q: null } })
         return
       }
@@ -224,9 +227,11 @@ export const useLab = create((set, get) => {
 frame: () => set((s) => ({ frameToken: s.frameToken + 1 })),
 
     setQuality: (quality) => set({ quality }),
+    railPinned: readPrefs().railPinned ?? false,
+    setRailPinned: (railPinned) => set({ railPinned }),
     setAutoRotate: (v) => set({ autoRotate: v }),
-    toggleCode: () => set((s) => ({ showCode: !s.showCode })),
-    toggleInfo: () => set((s) => ({ showInfo: !s.showInfo })),
+    toggleCode: () => set((s) => ({ showCode: !s.showCode, panelTab: 'code', showInspectorPanel: true })),
+    toggleInfo: () => set((s) => ({ showInfo: !s.showInfo, panelTab: 'learn', showInspectorPanel: true })),
     toggleInspectorPanel: () => set((s) => ({ showInspectorPanel: !s.showInspectorPanel })),
     setBrush: (brush) => set({ brush }),
     setSelected: (selected) => set({ selected }),
@@ -289,7 +294,7 @@ frame: () => set((s) => ({ frameToken: s.frameToken + 1 })),
         run = op.run(s.machine, args)
       } catch (err) {
         console.error(err)
-        get().toastIt('error', 'That operation blew up — see console')
+        get().toastIt('error', 'Operation failed. See the console.')
         set({ playing: false })
         return
       }
@@ -347,7 +352,6 @@ frame: () => set((s) => ({ frameToken: s.frameToken + 1 })),
     },
     togglePlay: () => (get().playing ? get().pause() : get().play()),
     seek: (i) => {
-      const s = get()
       stopLoop()
       set({ playing: false })
       applyIndex(get, set, i)
@@ -396,9 +400,6 @@ frame: () => set((s) => ({ frameToken: s.frameToken + 1 })),
 
 
 /* ── prefs: survive a reload, deep-link the entry ─────────────────────── */
-function prefersReduced() {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-}
 function readPrefs() {
   if (typeof localStorage === 'undefined') return {}
   try {
@@ -407,7 +408,7 @@ function readPrefs() {
     return {}
   }
 }
-const PREF_KEYS = ['speed', 'quality', 'autoRotate', 'showCode', 'showInfo']
+const PREF_KEYS = ['speed', 'quality', 'autoRotate', 'showCode', 'showInfo', 'panelTab', 'railPinned']
 if (typeof window !== 'undefined') {
   let queued = false
   useLab.subscribe((state) => {
